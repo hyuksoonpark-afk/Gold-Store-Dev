@@ -45,7 +45,7 @@ const $=s=>document.querySelector(s),W=3.75,fmt=n=>Math.round(n).toLocaleString(
 const today=new Date().toISOString().slice(0,10);
 let db,cur=null,tab='',sel=null,edit=-1,det=false;
 const seed=()=>({
- stores:[{code:'000',name:'본사',biz:'-'},{code:'S01',name:'경주금거래소',biz:'123-45-67890'}],
+ stores:[{code:'000',name:'본사',biz:'-'},{code:'S01',name:'경주/금거래소',biz:'123-45-67890'}],
  users:[{id:'admin',pw:'1234',name:'시스템관리자',tel:'010-0000-0000',grp:'A',exp:'2099-12-31',store:'000'},
   {id:'mgr',pw:'1234',name:'김점장',tel:'010-1111-2222',grp:'M',exp:'2099-12-31',store:'S01'},
   {id:'staff',pw:'1234',name:'이직원',tel:'010-3333-4444',grp:'U',exp:'2099-12-31',store:'S01'}],
