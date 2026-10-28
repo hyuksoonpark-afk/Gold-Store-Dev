@@ -1,0 +1,11 @@
+# Netlify 설정: 빌드 없이 저장소 루트를 그대로 배포합니다.
+[build]
+  publish = "."
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "SAMEORIGIN"
+    Referrer-Policy = "same-origin"
+    Cache-Control = "no-cache"

@@ -42,6 +42,8 @@ tr.r{cursor:pointer}tr.r:hover{background:var(--bg)}
 <div id="app"></div><div id="toast"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
+// ── Supabase 연결 정보 (공개 가능한 Publishable Key만 넣습니다. Secret / service_role 키는 절대 넣지 마세요) ──
+const APP_CONFIG={SUPABASE_URL:'https://dlvfmjcsetocpatfgxne.supabase.co',SUPABASE_KEY:'sb_publishable_nwC61nK2L6K_8ymD6BLvig_qafI9FQI'};
 const $=s=>document.querySelector(s),W=3.75,fmt=n=>Math.round(n).toLocaleString('ko-KR'),g3=n=>(+n).toFixed(3);
 const today=new Date().toISOString().slice(0,10);
 let db,cur=null,tab='',sel=null,edit=-1,det=false;
@@ -93,10 +95,10 @@ const ds=g=>g3(g)+'g / '+g3(g/W)+'돈';
 // ---- 로그인 ----
 function loginView(){
  $('#app').innerHTML=`<div id=login><div class=card><h2>금거래소 매장관리</h2>
- <label>매장번호<input id=ls value=S01></label><label>아이디<input id=li value=mgr></label>
- <label>비밀번호<input id=lp type=password value=1234></label><button class=p style="width:100%" onclick=doLogin()>로그인</button>
+ <label>매장번호<input id=ls autocomplete=off></label><label>아이디<input id=li autocomplete=username></label>
+ <label>비밀번호<input id=lp type=password autocomplete=current-password onkeydown="if(event.key=='Enter')doLogin()"></label><button class=p style="width:100%" onclick=doLogin()>로그인</button>
  <button style="width:100%" onclick="pwFind()">비밀번호 찾기</button>
- <p class=note>체험 계정(비밀번호 1234)<br>관리자: 000 / admin<br>매장 Manager: S01 / mgr<br>직원 User: S01 / staff<br>서브 관리자 S: S01 / sub</p></div></div>`;
+ </div></div>`;
 }
 function doLogin(){
  const s=$('#ls').value.trim(),u=db.users.find(x=>x.id==$('#li').value.trim()&&x.pw==$('#lp').value&&x.store==s);
@@ -129,7 +131,8 @@ function look(){
  </div>
  <div class=card>${lGo?`<p class=note style="margin:0 0 8px">검색 결과 ${list.length}건${list.length>100?' (상위 100건만 표시, 조건을 더 좋혀 주세요)':''}</p>`:''}<div class=tw><table><tr><th>코드<th>모델<th>분류<th>재질<th>총중량<th>정상가<th>재고</tr>${list.slice(0,100).map(p=>{const c=calc(p);return`<tr class=r onclick="pick('${p.code}')"><td>${p.code}<td>${p.model} ${phIcon(p.code,p.store)}<td>${cn(p.cat)}<td>${p.mat}K/${p.purity}<td>${g3(p.total)}g<td>${c.pol=='P'&&!c.base?'공시가 입력':fmt(c.base)}<td>${p.qty}</tr>`}).join('')||'<tr><td>'+(lGo?'조건에 맞는 제품이 없습니다':'검색 조건을 입력하고 [조회]를 눌러주세요')}</table></div></div>`;
  if(sel){const p=db.products.find(x=>x.code==sel&&x.store==cur.store);if(p){const c=calc(p);
-  const k=sv.code==p.code?sv:{pt:'base',sn:1,sa:Math.round(c.base)};const mg=v=>v?`${fmt(v-c.cost)}원 (${((v-c.cost)/v*100).toFixed(1)}%)`:'공시가 입력 필요';
+  const k=sv.code==p.code?sv:{pt:'base',sn:1,sa:Math.round(c.base)};const mgAmt=(t,v)=>p.vat==0?(t=='base'?v-c.cost*1.1:t=='disc'?v-c.cost:v-c.cost*1.13):(t=='base'?v-c.cost:t=='disc'?v-c.cost/1.1:v/(1+c.cp/100)-c.cost);
+  const mg=(v,t)=>v?`${fmt(mgAmt(t,v))}원 (${(mgAmt(t,v)/v*100).toFixed(1)}%)`:'공시가 입력 필요';
   h+=`<div class=card><h3>${p.model} ${phIcon(p.code,p.store)} <span class=tag>${p.code}</span> <small style="font-weight:400;color:var(--mu)">${(()=>{const r=rateNow();return p.mat=='PT'?'백금 시세 '+fmt(r.pt):p.mat=='Ag'?'은 시세 '+fmt(r.ag):'금 시세 '+fmt(r.au)})()}원/돈</small> ${p.qty>0?'':'<span class=tag style="color:var(--wn);border-color:var(--wn)">품절</span>'}</h3>
   ${c.pol=='P'?`<div class=row style="margin:0 0 6px"><div><label>공시 정상가(원) 입력<input id=pub type=number min=0 value=${PUB[cur.store+p.code]||''} onkeydown="if(event.key=='Enter')setPub('${p.code}')"></label></div><button class=p onclick="setPub('${p.code}')">적용</button></div>`:''}<div class=price><div><small>정상가</small><b>${fmt(c.base)}</b></div><div><small>할인가 (${c.pol=='P'?'-'+c.dp+'%':'÷'+(1+c.dp/100)})</small><b>${fmt(c.disc)}</b></div><div><small>카드가 (+${c.cp}%)</small><b>${fmt(c.card)}</b></div></div>
   <div class=kv><div><span>분류</span>${cn(p.cat)}</div><div><span>재질/순도</span>${p.mat} / ${p.purity}</div><div><span>가격정책</span>${PN[c.pol]}</div><div><span>VAT</span>${p.vat==0?'미포함(+10%)':'포함'}</div><div><span>색상</span>${p.color}</div><div><span>사이즈</span>${p.size}</div>
@@ -137,7 +140,7 @@ function look(){
   <div><span>순금환산</span>${ds(c.conv)}</div><div><span>알중량</span>${g3(c.stone)}g</div>${c.pol=='S'?`<div><span>${p.mat=='PT'?'백금값':p.mat=='Ag'?'은값':'금값'}</span>${fmt(c.gold)}원</div>`:''}${c.pol=='S'?`<div><span>세공비</span>${fmt(c.tag)}원</div>`:c.pol=='U'?`<div><span>판매 배수</span>${p.mult}배</div>`:`<div><span>공시 정상가(입력값)</span>${fmt(c.base)}원</div>`}<div><span>재고수량</span>${p.qty}</div>
   </div>
   <div class=row><div><label>판매가 구분<select id=pt onchange="lAuto('${p.code}')"><option value=base ${k.pt=='base'?'selected':''}>정상가</option><option value=disc ${k.pt=='disc'?'selected':''}>할인가</option><option value=card ${k.pt=='card'?'selected':''}>카드가</option></select></label></div>
-  <div><label>수량<input id=sn type=number value=${k.sn} min=1 onchange="lAuto('${p.code}')"></label></div><div><label>최종 판매금액(원, 흥정 시 수정)<input id=sa type=number min=0 value=${k.sa}></label></div><button class=p onclick="sell('${p.code}')">판매 등록</button><button onclick="cAdd('${p.code}')">🛒 장바구니 담기</button><button onclick="keepSale();det=!det;look()">상세보기</button><button onclick="openOrder()">주문등록</button></div>${det?`<div class=kv style="margin-top:12px"><div><span>업체</span>${vn(p.vendor)}</div>${M?`<div><span>입고일</span>${p.date}</div>`:''}<div><span>공임합계</span>${fmt(c.lab)}원</div>${M?`${c.pol!='S'?'':`<div><span>매입원가 기준시세</span>${p.costRate>0?fmt(p.costRate)+'원/돈':'미입력(현재시세 적용)'}</div>`}<div><span>단위 매입원가</span>${fmt(c.cost)}원</div><div><span>매입가(수량)</span>${fmt(c.cost*p.qty)}원</div><div><span>정상가 마진</span><b class=mg>${mg(c.base)}</b></div><div><span>할인가 마진</span><b class=mg>${mg(c.disc)}</b></div><div><span>카드가 마진</span><b class=mg>${mg(c.card)}</b></div>`:''}</div>`:''}</div>`}}
+  <div><label>수량<input id=sn type=number value=${k.sn} min=1 onchange="lAuto('${p.code}')"></label></div><div><label>최종 판매금액(원, 흥정 시 수정)<input id=sa type=number min=0 value=${k.sa}></label></div><button class=p onclick="sell('${p.code}')">판매 등록</button><button onclick="cAdd('${p.code}')">🛒 장바구니 담기</button><button onclick="keepSale();det=!det;look()">상세보기</button><button onclick="openOrder()">주문등록</button></div>${det?`<div class=kv style="margin-top:12px"><div><span>업체</span>${vn(p.vendor)}</div>${M?`<div><span>입고일</span>${p.date}</div>`:''}<div><span>공임합계</span>${fmt(c.lab)}원</div>${M?`${c.pol!='S'?'':`<div><span>매입원가 기준시세</span>${p.costRate>0?fmt(p.costRate)+'원/돈':'미입력(현재시세 적용)'}</div>`}<div><span>단위 매입원가</span>${fmt(c.cost)}원</div><div><span>매입가(수량)</span>${fmt(c.cost*p.qty)}원</div><div><span>정상가 마진</span><b class=mg>${mg(c.base,'base')}</b></div><div><span>할인가 마진</span><b class=mg>${mg(c.disc,'disc')}</b></div><div><span>카드가 마진</span><b class=mg>${mg(c.card,'card')}</b></div>`:''}</div>`:''}</div>`}}
  if(ord&&ord==sel){const p=db.products.find(x=>x.code==sel&&x.store==cur.store);if(p)h+=orderCard(p)}
  $('#main').innerHTML=h;if(ord&&ord==sel)oCalc();
 }
@@ -393,9 +396,14 @@ function migPreview(){const R=mig.res,hard=R.err.filter(e=>!e.w),D=R.D,total=['v
  return `<div class=card><h3>3. 검증 결과</h3><div class=tw><table><tr><th>시트<th>이관 가능<th>오류</tr>${T.map(t=>`<tr><td>${t[0]}<td>${t[1]}<td>${R.err.filter(e=>e.s==t[0]&&!e.w).length||'-'}</tr>`).join('')}</table></div>
  ${R.err.length?`<h3 style="margin-top:12px">오류·안내 (${R.err.length}건${R.err.length>100?', 앞 100건 표시':''})</h3><div class=tw><table><tr><th>시트<th>행<th>내용</tr>${R.err.slice(0,100).map(e=>`<tr><td>${e.s}<td>${e.r}${e.r=='-'?'':'행'}<td ${e.w?'':'style="color:var(--wn)"'}>${hEsc(e.m)}</tr>`).join('')}</table></div>`:'<p class=note>오류가 없습니다.</p>'}
  <div class=row>${hard.length?'<p class=note style="margin:0">오류를 수정한 뒤 파일을 다시 선택해 주세요. 오류가 있으면 실행할 수 없습니다.</p>':total?'<button class=p onclick=migConfirm()>이관 실행</button>':'<p class=note style="margin:0">이관할 데이터가 없습니다.</p>'}</div></div>`}
+async function sbCheck(){const el=$('#sbres');el.textContent='확인 중...';
+ try{const r=await fetch(APP_CONFIG.SUPABASE_URL+'/rest/v1/stores?select=store_code&limit=1',{headers:{apikey:APP_CONFIG.SUPABASE_KEY}});const t=await r.text();
+  el.innerHTML=r.ok?'연결 성공: Supabase 서버와 stores 테이블이 확인되었습니다.':(r.status==404||/PGRST205|does not exist|schema cache/i.test(t)?'서버에는 연결되었지만 stores 테이블이 없습니다. supabase/schema.sql을 먼저 실행하세요.':'서버 응답 '+r.status+': '+hEsc(t.slice(0,160)))}
+ catch(e){el.textContent='연결하지 못했습니다. Claude 안에서 열은 화면은 외부 접속이 막혀 있어, Netlify 같은 외부 주소에서 확인해야 합니다.'}}
 function migV(){const st=db.stores.filter(s=>s.code!='000');if(!st.some(s=>s.code==mig.store)&&st.length)mig.store=st[0].code;
  const log=(db.migLog||[]).slice(-10).reverse();
  $('#main').innerHTML=`<h2>데이터 이관 (엑셀 업로드)</h2>
+ <div class=card><h3>Supabase 연결</h3><p class=note style="margin:0 0 8px">프로젝트 주소: ${hEsc(APP_CONFIG.SUPABASE_URL)}<br>현재 앱의 데이터 저장은 아직 브라우저 저장소를 사용하고, 여기서는 연결 확인만 할 수 있습니다.</p><div class=row style="margin:0"><button onclick=sbCheck()>연결 확인</button><span id=sbres class=note></span></div></div>
  <div class=card><h3>1. 대상 매장·방식</h3><div class=grid><div><label>대상 매장<select onchange="migStore(this.value)">${st.map(s=>`<option value="${s.code}" ${s.code==mig.store?'selected':''}>${hEsc(s.name)} (${s.code})</option>`).join('')}</select></label></div>
  <div><label>중복 코드 처리<select onchange="mig.mode=this.value"><option value=skip ${mig.mode=='skip'?'selected':''}>건너뛰기 (기존 데이터 유지)</option><option value=over ${mig.mode=='over'?'selected':''}>덮어쓰기 (같은 코드 갱신)</option></select></label></div></div></div>
  <div class=card><h3>2. 엑셀 파일 선택</h3><p class=note>제공된 템플릿(금거래소_데이터이관_템플릿.xlsx)에 작성한 파일을 선택하세요. 선택하면 먼저 검증만 하고, 실행 버튼을 눌러야 데이터가 반영됩니다.</p><input type=file accept=".xlsx,.xls" onchange="migFile(this)">${mig.name?`<p class=note>선택한 파일: ${hEsc(mig.name)}</p>`:''}</div>
