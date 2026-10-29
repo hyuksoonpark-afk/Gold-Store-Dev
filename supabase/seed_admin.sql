@@ -10,8 +10,8 @@ insert into stores (store_code, store_name, biz_no) values ('000', '본사', '-'
   on conflict (store_code) do nothing;
 
 insert into profiles (id, store_code, login_id, full_name, grp, must_change)
-values ('89f72a49-0ead-421b-9055-11704c556dc6', '000', 'admin', '시스템관리자', 'A', true);
+values ('ADMIN-UID-HERE', '000', 'admin', '시스템관리자', 'A', true);
 
 -- (선택) 테스트 매장 1개와 기본 설정
-insert into stores (store_code, store_name, biz_no) values ('KG001', '경주 한국금거래소', '867-26-67890');
-insert into store_config (store_code) values ('KG001');
+-- insert into stores (store_code, store_name, biz_no) values ('S01', '경주금거래소', '123-45-67890');
+-- insert into store_config (store_code) values ('S01');

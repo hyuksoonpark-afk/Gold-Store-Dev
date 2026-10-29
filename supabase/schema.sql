@@ -293,6 +293,14 @@ begin
   update orders set status = p_status where order_id = p_order and store_code = my_store();
 end $$;
 
+-- ---------- 6-1. 로그인 보조 (1단계) ----------
+create or replace function clear_must_change() returns void
+language sql security definer set search_path = public as $$
+  update profiles set must_change = false where id = auth.uid()
+$$;
+revoke all on function clear_must_change() from public, anon;
+grant execute on function clear_must_change() to authenticated;
+
 -- ---------- 7. 함수·뷰 실행 권한 (로그인한 사용자만) ----------
 revoke all on function product_prices(text,text,numeric), register_sale(text,int,text,bigint), cancel_sale(uuid), update_order_status(uuid,text) from public, anon;
 grant execute on function product_prices(text,text,numeric), register_sale(text,int,text,bigint), cancel_sale(uuid), update_order_status(uuid,text) to authenticated;
