@@ -116,7 +116,7 @@ function menus(){const g=cur.grp,m=[];
  if(g=='M'||g=='S')m.push(['regp','제품 등록'],['regr','시세 등록'],['master','마스터정보']);
  return m}
 function shell(){
- const st=db.stores.find(s=>s.code==cur.store);
+ const st=db.stores.find(s=>s.code==cur.store)||{name:cur.store};
  $('#app').innerHTML=`<header><div><b>${st.name}</b> <small>${cur.name} · ${GN[cur.grp]}</small> <button onclick="pwOpen()">비밀번호 변경</button></div><button onclick="doLogout()">로그아웃</button></header>
  <nav>${menus().map(m=>{const on=m[0]==tab||(m[0]=='master'&&isSub(tab));return `<button class="${on?'on':''}" onclick="go('${m[0]=='master'?subMenus()[0][0]:m[0]}')">${m[1]}</button>`}).join('')}</nav>${isSub(tab)?`<nav style="background:var(--bg)">${subMenus().map(m=>`<button class="${m[0]==tab?'on':''}" onclick="go('${m[0]}')">${m[1]}</button>`).join('')}</nav>`:''}<main id=main></main>`;
  ({look,cart:cartV,sales:salesV,orders:ordersV,hol:holV,disc:discV,migr:migV,rates:ratesView,regr,regp,vend,cat,users:usersV,stores:storesV,groups})[tab]();
@@ -420,13 +420,17 @@ async function sbEnter(user){
  if(error||!p){await SB.auth.signOut();throw new Error('profile')}
  if(!p.active||p.expires_on<today){await SB.auth.signOut();throw new Error('expired')}
  cur={id:p.login_id,name:p.full_name,tel:p.tel,grp:p.grp,store:p.store_code,exp:p.expires_on,uid:p.id,mustChange:p.must_change};
- tab=menus()[0][0];shell();if(p.must_change)pwOpen(true)}
+ await sbSyncStore(p.store_code);tab=menus()[0][0];shell();if(p.must_change)pwOpen(true)}
+async function sbSyncStore(code){try{
+ if(!db.stores.some(s=>s.code==code)){const q=await SB.from('stores').select('*').eq('store_code',code).maybeSingle();db.stores.push({code,name:q.data?q.data.store_name:code,biz:q.data?(q.data.biz_no||''):'',_i:Date.now()+Math.random()})}
+ if(code!='000'&&!db.cats.some(c=>c.store==code)){['R:반지','N:목걸이','P:펜던트','B:팔찌','E:귀걸이','I:피어싱','S:형상','A:공시가','X:기타'].forEach(x=>{const a=x.split(':');db.cats.push({code:a[0],name:a[1],store:code,_i:Date.now()+Math.random()})})}
+ if(!db.cfg[code])db.cfg[code]={disc:10,card:3,discA:2.5,cardA:3};save()}catch(e){}}
 async function sbLogin(){const s=$('#ls').value.trim(),i=$('#li').value.trim(),pw=$('#lp').value;
  if(!sbDomainOk())return msg('index.html의 APP_CONFIG.AUTH_DOMAIN 값을 사용할 도메인으로 설정해 주세요.','설정 필요');
  if(!s||!i||!pw)return toast('매장번호, 아이디, 비밀번호를 입력하세요');
  const {data,error}=await SB.auth.signInWithPassword({email:sbEmail(s,i),password:pw});
  if(error){const m=String(error.message||'');return msg('로그인하지 못했습니다.<br><small>'+hEsc(m)+(error.status?' (코드 '+error.status+')':'')+'</small><br>매장번호·아이디·비밀번호를 확인하세요. 브라우저가 저장해 둔 이전 비밀번호가 자동으로 입력되지 않았는지도 확인해 주세요.','로그인 실패')}
- try{await sbEnter(data.user)}catch(e){toast(e.message=='expired'?'사용 기간이 만료되었거나 중지된 계정입니다':'사용자 정보를 찾을 수 없습니다. 관리자에게 문의하세요')}}
+ try{await sbEnter(data.user)}catch(e){const k=e.message;if(k=='expired')toast('사용 기간이 만료되었거나 중지된 계정입니다');else if(k=='profile')toast('사용자 정보(profiles)를 찾을 수 없습니다. 관리자에게 문의하세요');else msg('화면을 불러오는 중 오류가 발생했습니다:<br><small>'+hEsc(String(k))+'</small>','로그인 오류')}}
 async function doLogout(){if(SB)await SB.auth.signOut();cur=null;loginView()}
 async function sbPwSave(){const a=$('#pw0').value,b=$('#pw1').value,c=$('#pw2').value,er=t=>{$('#pwErr').textContent=t};
  if(!a)return er('현재 비밀번호를 입력하세요.');
