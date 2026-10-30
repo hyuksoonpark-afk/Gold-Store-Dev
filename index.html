@@ -44,7 +44,7 @@ tr.r{cursor:pointer}tr.r:hover{background:var(--bg)}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
 <script>
 // ── Supabase 연결 정보 (공개 가능한 Publishable Key만 넣습니다. Secret / service_role 키는 절대 넣지 마세요) ──
-const APP_CONFIG={SUPABASE_URL:'https://dlvfmjcsetocpatfgxne.supabase.co',SUPABASE_KEY:'sb_publishable_nwC61nK2L6K_8ymD6BLvig_qafI9FQI',MODE:'supabase',AUTH_DOMAIN:'goldstore-dev.netlify.app'};
+const APP_CONFIG={SUPABASE_URL:'https://dlvfmjcsetocpatfgxne.supabase.co',SUPABASE_KEY:'sb_publishable_nwC61nK2L6K_8ymD6BLvig_qafI9FQI',MODE:'supabase',AUTH_DOMAIN:'도메인을-입력하세요'};
 const $=s=>document.querySelector(s),W=3.75,fmt=n=>Math.round(n).toLocaleString('ko-KR'),g3=n=>(+n).toFixed(3);
 const today=new Date().toISOString().slice(0,10);
 let db,cur=null,tab='',sel=null,edit=-1,det=false;
@@ -291,11 +291,11 @@ function pwFindGo(){const dg=t=>String(t||'').replace(/\D/g,''),u=db.users.find(
  const t=genPw();u.pw=t;u.mustChange=true;save();document.getElementById('ovl').remove();
  msg(`<b>${hEsc(u.name)}</b>님의 임시 비밀번호입니다.<br>${tmpBox(t)}<br>이 임시 비밀번호로 로그인하면 새 비밀번호를 설정해야 합니다.<br><small>실제 서비스에서는 화면에 표시하지 않고 문자(SMS)로 발송합니다.</small>`,'임시 비밀번호')}
 const canReset=u=>cur.grp=='A'?(u.grp=='M'||u.grp=='S'):(cur.grp=='M'&&u.store==cur.store&&(u.grp=='U'||u.grp=='S'));
-function pwReset(id){if(SB)return sbReset(id);const u=db.users.find(x=>x.id==id);if(!u)return;
- if(id==cur.id)return msg('본인 비밀번호는 상단의 비밀번호 변경을 이용해 주세요.');
+function pwReset(id){if(SB)return sbReset(id);const u=db.users.find(x=>String(x._i)==String(id));if(!u)return;
+ if(u.id==cur.id&&u.store==cur.store)return msg('본인 비밀번호는 상단의 비밀번호 변경을 이용해 주세요.');
  if(!canReset(u))return msg('이 사용자의 비밀번호를 초기화할 권한이 없습니다.');
- ovl(`<div class=card style="max-width:380px;width:100%;margin:0"><h3>비밀번호 초기화</h3><p><b>${hEsc(u.name)}</b> (${hEsc(u.id)})의 비밀번호를 임시 비밀번호로 초기화할까요?</p><div class=row style="margin:0"><button class=d onclick="pwResetGo('${u.id}')">초기화</button><button onclick="document.getElementById('ovl').remove()">취소</button></div></div>`)}
-function pwResetGo(id){const u=db.users.find(x=>x.id==id);if(!u||!canReset(u))return;const t=genPw();u.pw=t;u.mustChange=true;save();document.getElementById('ovl').remove();
+ ovl(`<div class=card style="max-width:380px;width:100%;margin:0"><h3>비밀번호 초기화</h3><p><b>${hEsc(u.name)}</b> (${hEsc(u.id)})의 비밀번호를 임시 비밀번호로 초기화할까요?</p><div class=row style="margin:0"><button class=d onclick="pwResetGo('${u._i}')">초기화</button><button onclick="document.getElementById('ovl').remove()">취소</button></div></div>`)}
+function pwResetGo(id){const u=db.users.find(x=>String(x._i)==String(id));if(!u||!canReset(u))return;const t=genPw();u.pw=t;u.mustChange=true;save();document.getElementById('ovl').remove();
  msg(`<b>${hEsc(u.name)}</b> (${hEsc(u.id)})의 임시 비밀번호입니다.<br>${tmpBox(t)}<br>직원에게 전달해 주세요. 다음 로그인 시 새 비밀번호를 설정해야 합니다.`,'임시 비밀번호 발급')}
 // ---- 비밀번호 변경 ----
 function pwOpen(f){ovl(`<div class=card style="max-width:380px;width:100%;margin:0"><h3>${f?'새 비밀번호 설정':'비밀번호 변경'}</h3>${f?'<p class=note>임시 비밀번호로 로그인했습니다. 새 비밀번호를 설정해야 계속 사용할 수 있습니다. 현재 비밀번호 칸에는 임시 비밀번호를 입력하세요.</p>':''}
@@ -305,7 +305,7 @@ function pwOpen(f){ovl(`<div class=card style="max-width:380px;width:100%;margin
  <p class=note style="margin:8px 0">8~20자, 영문과 숫자를 각각 1자 이상 포함, 공백 불가. 아이디가 포함된 비밀번호와 현재 비밀번호와 동일한 값은 사용할 수 없습니다. 특수문자를 함께 쓰면 더 안전합니다.</p>
  <p id=pwErr style="color:var(--wn);margin:0 0 8px;font-size:14px"></p>
  <div class=row style="margin:0"><button class=p onclick=pwSave()>변경</button>${f?'':`<button onclick="document.getElementById('ovl').remove()">취소</button>`}</div></div>`);if(f)document.getElementById('ovl').onclick=null}
-function pwSave(){if(SB)return sbPwSave();const a=$('#pw0').value,b=$('#pw1').value,c=$('#pw2').value,u=db.users.find(x=>x.id==cur.id),er=t=>{$('#pwErr').textContent=t};
+function pwSave(){if(SB)return sbPwSave();const a=$('#pw0').value,b=$('#pw1').value,c=$('#pw2').value,u=db.users.find(x=>x.id==cur.id&&x.store==cur.store),er=t=>{$('#pwErr').textContent=t};
  if(!u||u.pw!==a)return er('현재 비밀번호가 올바르지 않습니다.');
  if(b.length<8||b.length>20)return er('새 비밀번호는 8~20자로 입력하세요.');
  if(/\s/.test(b))return er('비밀번호에 공백을 사용할 수 없습니다.');
@@ -350,7 +350,7 @@ function migCheck(wb,store){const err=[],er=(s,r,m,w)=>err.push({s,r,m,w}),D={ve
   if(!['M','S','U'].includes(g))return er('직원ID',r._r,'그룹은 M, S, U 중 하나여야 합니다');
   if(!ex)return er('직원ID',r._r,'권한만료일 형식 오류 (YYYY-MM-DD)');
   if(seen.has(id))return er('직원ID',r._r,'아이디가 중복됩니다: '+id);
-  if(db.users.some(u=>u.id==id&&u.store!=store))return er('직원ID',r._r,'다른 매장에서 이미 사용 중인 아이디입니다: '+id);
+  
   seen.add(id);D.users.push({id,name:nm,pw,tel:S(r['전화번호']),grp:g,exp:ex})});
  sh('휴무일').forEach(r=>{const d=xDate(r['일자']),ty=S(r['구분'])||'공휴일';
   if(!d)return er('휴무일',r._r,'일자 형식 오류 (YYYY-MM-DD)');
@@ -425,7 +425,7 @@ async function sbLogin(){const s=$('#ls').value.trim(),i=$('#li').value.trim(),p
  if(!sbDomainOk())return msg('index.html의 APP_CONFIG.AUTH_DOMAIN 값을 사용할 도메인으로 설정해 주세요.','설정 필요');
  if(!s||!i||!pw)return toast('매장번호, 아이디, 비밀번호를 입력하세요');
  const {data,error}=await SB.auth.signInWithPassword({email:sbEmail(s,i),password:pw});
- if(error)return toast('매장번호·아이디·비밀번호를 확인하세요');
+ if(error){const m=String(error.message||'');return msg('로그인하지 못했습니다.<br><small>'+hEsc(m)+(error.status?' (코드 '+error.status+')':'')+'</small><br>매장번호·아이디·비밀번호를 확인하세요. 브라우저가 저장해 둔 이전 비밀번호가 자동으로 입력되지 않았는지도 확인해 주세요.','로그인 실패')}
  try{await sbEnter(data.user)}catch(e){toast(e.message=='expired'?'사용 기간이 만료되었거나 중지된 계정입니다':'사용자 정보를 찾을 수 없습니다. 관리자에게 문의하세요')}}
 async function doLogout(){if(SB)await SB.auth.signOut();cur=null;loginView()}
 async function sbPwSave(){const a=$('#pw0').value,b=$('#pw1').value,c=$('#pw2').value,er=t=>{$('#pwErr').textContent=t};
@@ -438,10 +438,11 @@ async function sbPwSave(){const a=$('#pw0').value,b=$('#pw1').value,c=$('#pw2').
  if(b!==c)return er('새 비밀번호 확인이 일치하지 않습니다.');
  const r1=await SB.auth.signInWithPassword({email:sbEmail(cur.store,cur.id),password:a});if(r1.error)return er('현재 비밀번호가 올바르지 않습니다.');
  const r2=await SB.auth.updateUser({password:b});if(r2.error)return er('변경하지 못했습니다: '+r2.error.message);
+ const r3=await SB.auth.signInWithPassword({email:sbEmail(cur.store,cur.id),password:b});if(r3.error)return er('비밀번호를 변경했지만 새 비밀번호로 확인하지 못했습니다: '+r3.error.message);
  await SB.rpc('clear_must_change');cur.mustChange=false;
- document.getElementById('ovl').remove();msg('비밀번호가 변경되었습니다. 다음 로그인부터 새 비밀번호를 사용하세요.','비밀번호 변경')}
+ document.getElementById('ovl').remove();msg('비밀번호가 변경되었습니다. 다음 로그인부터 새 비밀번호를 사용하세요.<br><small>브라우저가 이전 비밀번호를 저장해 두었다면 새 비밀번호로 수정해 주세요.</small>','비밀번호 변경')}
 let sbUsers=[],sbSelU=null,sbStSel=null;
-function sbReset(lid){const u=sbUsers.find(x=>x.login_id==lid);if(!u)return;if(lid==cur.id)return msg('본인 비밀번호는 상단의 비밀번호 변경을 이용해 주세요.');
+function sbReset(uid){const u=sbUsers.find(x=>x.id==uid);if(!u)return;if(u.id==cur.uid)return msg('본인 비밀번호는 상단의 비밀번호 변경을 이용해 주세요.');
  ovl(`<div class=card style="max-width:380px;width:100%;margin:0"><h3>비밀번호 초기화</h3><p><b>${hEsc(u.full_name)}</b> (${hEsc(u.login_id)})의 비밀번호를 임시 비밀번호로 초기화할까요?</p><div class=row style="margin:0"><button class=d onclick="sbResetGo('${u.id}')">초기화</button><button onclick="document.getElementById('ovl').remove()">취소</button></div></div>`)}
 async function sbResetGo(uid){document.getElementById('ovl').remove();const r=await fnCall({action:'reset',user_id:uid});
  if(r.error)return msg(hEsc(r.error),'초기화하지 못했습니다');
@@ -460,7 +461,7 @@ async function usersVsb(){const A=cur.grp=='A';$('#main').innerHTML='<h2>'+(A?'�
  ${A?`<div><label>매장<select id=su_st ${u?'disabled':''}>${sts.map(s=>`<option value=${s.store_code} ${u&&u.store_code==s.store_code?'selected':''}>${s.store_code} ${hEsc(s.store_name)}</option>`).join('')}</select></label></div>`:''}
  <div><label>권한만료일<input id=su_ex type=date value="${u?u.expires_on:'2099-12-31'}"></label></div>
  ${u?`<div><label>상태<select id=su_ac><option value=1 ${u.active?'selected':''}>사용</option><option value=0 ${u.active?'':'selected'}>중지</option></select></label></div>`:''}</div>
- <div class=row><button class=p onclick=sbUserSave()>${u?'수정 저장':'추가'}</button>${u?`<button onclick="sbSelU=null;usersVsb()">취소</button><button onclick="pwReset('${u.login_id}')">비밀번호 초기화</button>`:''}</div>${u?'':'<p class=note>임시 비밀번호는 8~20자, 영문과 숫자 포함, 공백 불가이며 처음 로그인할 때 변경해야 합니다.</p>'}</div>
+ <div class=row><button class=p onclick=sbUserSave()>${u?'수정 저장':'추가'}</button>${u?`<button onclick="sbSelU=null;usersVsb()">취소</button><button onclick="pwReset('${u.id}')">비밀번호 초기화</button>`:''}</div>${u?'':'<p class=note>임시 비밀번호는 8~20자, 영문과 숫자 포함, 공백 불가이며 처음 로그인할 때 변경해야 합니다.</p>'}</div>
  <div class=card><div class=tw><table><tr><th>ID<th>성명<th>전화번호<th>그룹<th>만료일<th>상태${A?'<th>매장':''}</tr>${sbUsers.map(x=>`<tr class=r onclick="sbSelU='${x.id}';usersVsb()"><td>${hEsc(x.login_id)}<td>${hEsc(x.full_name)}<td>${hEsc(x.tel||'')}<td>${x.grp}<td>${x.expires_on}<td>${x.active?'사용':'중지'}${A?'<td>'+x.store_code:''}</tr>`).join('')||'<tr><td>데이터가 없습니다'}</table></div></div>`}
 async function sbUserSave(){const A=cur.grp=='A',u=sbSelU&&sbUsers.find(x=>x.id==sbSelU),tl=$('#su_tel').value.trim(),tel=tl=='010-'?'':tl;
  const body=u?{action:'update',user_id:u.id,full_name:$('#su_nm').value.trim(),tel,grp:$('#su_gr').value,expires_on:$('#su_ex').value,active:$('#su_ac').value=='1'}
@@ -585,7 +586,7 @@ const vName=(c,s)=>(db.vendors.find(v=>v.code==c&&v.store==s)||{}).name||c;
 const vSortName=a=>a.slice().sort((x,y)=>String(x.name).localeCompare(String(y.name),'ko'));
 const vendorList=sel=>vSortName(mine('vendors').filter(v=>(v.status||'활성')=='활성'||v.code==sel));
 const vendorOpts=(c)=>vendorList(c).map(v=>`<option value="${v.code}" ${v.code==c?'selected':''}>${hEsc(v.name)}${(v.status||'활성')=='활성'?'':' (비활성)'}</option>`).join('');
-const uName=id=>(db.users.find(u=>u.id==id)||{}).name||id;
+const uName=(id,st)=>{const s=st||(cur&&cur.store);return(db.users.find(u=>u.id==id&&u.store==s)||db.users.find(u=>u.id==id)||{}).name||id};
 const oCh=o=>{const d=[];if(o.from.vendor&&o.from.vendor!=o.to.vendor)d.push(`업체 ${vName(o.from.vendor,o.store)}→${vName(o.to.vendor,o.store)}`);[['mat','재질'],['purity','순도'],['size','사이즈'],['color','색상']].forEach(([k,n])=>{if(o.from[k]!=o.to[k])d.push(`${n} ${o.from[k]}→${o.to[k]}`)});if(Math.abs(o.from.w-o.to.w)>.0005)d.push(`중량 ${g3(o.from.w)}→${g3(o.to.w)}g`);return d.join(', ')||'변경 없음'};
 function oSearch(){oF={od1:$('#fo1').value,od2:$('#fo2').value,dd1:$('#fd1').value,dd2:$('#fd2').value,st:OST.filter((s,i)=>$('#fs'+i).checked),mat:$('#fmt').value,vd:$('#fvd').value};rLim=30;ordersV()}
 function oReset(){oF={od1:'',od2:'',dd1:'',dd2:'',st:OST.slice(),mat:'',vd:''};rLim=30;ordersV()}
@@ -643,7 +644,7 @@ function salesV(){
  const M=cur.grp=='M'||cur.grp=='S',TN={base:'정상가',disc:'할인가',card:'카드가'};
  const L=mine('sales').filter(s=>s.date>=sFrom&&s.date<=sTo).sort((a,b)=>a.date==b.date?(a.id<b.id?1:-1):(a.date<b.date?1:-1));
  const sum=k=>L.filter(s=>!s.x).reduce((a,s)=>a+(s[k]||0),0),amt=sum('amt'),cost=sum('cost');
- const un=n=>(db.users.find(u=>u.id==n)||{}).name||n;
+ const un=n=>uName(n);
  $('#main').innerHTML=`<h2>판매 현황</h2><div class=card><div class=row><div><label>시작일<input id=sdf type=date value=${sFrom}></label></div><div><label>종료일<input id=sdt type=date value=${sTo}></label></div><button class=p onclick="sFrom=$('#sdf').value;sTo=$('#sdt').value;rLim=30;salesV()">조회</button></div></div>
  <div class=card><div class=kv><div><span>판매 건수</span>${L.filter(s=>!s.x).length}건</div><div><span>판매 수량</span>${sum('n')}개</div><div><span>판매 금액</span>${fmt(amt)}원</div>${M?`<div><span>매입원가</span>${fmt(cost)}원</div><div><span>마진</span>${fmt(amt-cost)}원</div>`:''}</div></div>
  ${editPanel()}<div class=card><div class=tw><table><tr><th>일자<th>제품코드<th>모델명<th>가격구분<th>수량<th>판매금액<th>등록자${M?'<th>마진':''}<th></tr>${L.slice(0,rLim).map(s=>{const p=db.products.find(x=>x.code==s.code&&x.store==s.store)||{};return`<tr style="${s.x?'opacity:.5;text-decoration:line-through':''}"><td>${s.date}<td>${s.code}<td>${p.model||'-'} ${phIcon(s.code,s.store)}${s.ed?' <span class=tag>수정</span>':''}<td>${TN[s.type]}<td>${s.n}<td>${fmt(s.amt)}<td>${un(s.user)}${M?`<td>${s.cost==null?'-':fmt(s.amt-s.cost)}`:''}<td>${acts(s)}</tr>`}).join('')||'<tr><td>해당 기간의 판매 내역이 없습니다'}</table></div>${moreBar(L.length)}</div>`;
@@ -676,7 +677,7 @@ function cSave(){
  
  if(o.k=='products'){if(!r.code){const ym=r.date.slice(2,4)+r.date.slice(5,7),n=db.products.filter(p=>p.store==cur.store&&p.code.startsWith(ym)).length+1;r.code=ym+String(n).padStart(3,'0')}}
  else if(!r[o.f[0][0]]&&o.f[0][2]=='text')return toast('필수 항목을 입력하세요');
- if(o.pk&&db[o.k].some(x=>x[o.pk]==r[o.pk]&&x._i!==edit&&(o.k=='stores'||o.k=='users'||x.store==cur.store)))return toast('이미 등록된 코드입니다');
+ if(o.pk&&db[o.k].some(x=>x[o.pk]==r[o.pk]&&x._i!==edit&&(o.k=='stores'||x.store==(o.k=='users'&&r.store?r.store:cur.store))))return toast('이미 등록된 코드입니다');
  if(o.k=='products')r.photos=pPh.slice();
  const ex=edit>=0&&db[o.k].find(x=>x._i===edit);
  if(ex)Object.assign(ex,r);else{r.store=r.store||cur.store;r._i=Date.now();db[o.k].push(r)}
@@ -699,7 +700,7 @@ function cat(){crud({t:'제품 분류 등록',k:'cats',pk:'code',cols:['code','n
 function storesV(){if(SB)return storesVsb();crud({t:'매장 등록',k:'stores',pk:'code',list:db.stores,cols:['code','name','biz'],f:[['code','매장코드','text'],['name','매장명','text'],['biz','사업자번호','text']]})}
 function usersV(){if(SB)return usersVsb();
  const A=cur.grp=='A',list=db.users.filter(u=>A?(u.grp=='M'||u.grp=='S'):(u.store==cur.store&&(u.grp=='U'||u.grp=='S')));
- crud({t:A?'매장 관리자 ID 생성':'직원 ID 관리',k:'users',pk:'id',list,recBtn:r=>`<button onclick="pwReset('${r.id}')">비밀번호 초기화</button>`,def:{grp:A?'M':'U',exp:'2099-12-31',store:A?'S01':cur.store},cols:['id','name','tel','grp','exp'].concat(A?['store']:[]),
+ crud({t:A?'매장 관리자 ID 생성':'직원 ID 관리',k:'users',pk:'id',list,recBtn:r=>`<button onclick="pwReset('${r._i}')">비밀번호 초기화</button>`,def:{grp:A?'M':'U',exp:'2099-12-31',store:A?'S01':cur.store},cols:['id','name','tel','grp','exp'].concat(A?['store']:[]),
  f:[['id','ID','text'],['name','성명','text'],['pw','비밀번호','text'],['tel','전화번호','tel'],['grp','User그룹','text',()=>A?[['M','M-manager'],['S','S-sub manager']]:[['U','U-user'],['S','S-sub manager']]],['exp','권한만료일','date']].concat(A?[['store','매장','text',()=>db.stores.filter(s=>s.code!='000').map(s=>[s.code,s.code+' '+s.name])]]:[])});
 }
 function groups(){$('#main').innerHTML=`<h2>사용자 그룹</h2><div class=card><div class=tw><table><tr><th>코드<th>그룹<th>주요 권한</tr>

@@ -19,13 +19,14 @@ create table stores (
 create table profiles (                      -- auth.users 1:1 (사용자 정보·권한)
   id          uuid primary key references auth.users(id) on delete cascade,
   store_code  text not null references stores(store_code),
-  login_id    text not null unique,          -- 현재 프로토타입은 전체 매장에서 유일
+  login_id    text not null,                 -- 아이디는 같은 매장 안에서만 유일 (아래 unique 참고)
   full_name   text not null,
   tel         text,
   grp         char(1) not null check (grp in ('A','M','S','U')),   -- A/M/S(Sub)/U
   expires_on  date not null default '2099-12-31',
   must_change boolean not null default false,                       -- 임시 비밀번호 → 변경 강제
-  active      boolean not null default true
+  active      boolean not null default true,
+  unique (store_code, login_id)
 );
 
 create table categories (

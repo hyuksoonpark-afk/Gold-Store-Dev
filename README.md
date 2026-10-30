@@ -13,7 +13,8 @@
 | `netlify.toml` | 배포 설정 (빌드 없음) |
 | `supabase/schema.sql` | 테이블·권한 정책(RLS)·서버 함수 |
 | `supabase/seed_admin.sql` | 최초 Administrator 계정 연결 |
-| `supabase/step1_auth.sql` | 1단계 보조 함수 (schema.sql을 이미 실행했다면 이 파일만 추가 실행) |
+| `supabase/step1_auth.sql` | 1단계 보조 함수 (schema.sql을 이미 실행했다면 추가 실행) |
+| `supabase/step_unique_login.sql` | 이미 실행한 DB에서 아이디를 **매장별로 유일**하게 바꾸는 SQL |
 | `supabase/functions/admin-users/index.ts` | 계정 생성·비밀번호 초기화 Edge Function |
 | `templates/금거래소_데이터이관_템플릿.xlsx` | 기존 매장 자료 이관용 엑셀 템플릿 |
 | `docs/마진계산_규칙_계산기.xlsx` | 마진 계산 규칙 |
@@ -27,8 +28,11 @@
 
 - **Secret key / service_role 키는 이 저장소에 절대 올리지 마세요.** (Edge Function은 Supabase가 자동 제공하는 값을 씁니다.)
 
+## 아이디 규칙
+사용자 아이디는 **같은 매장 안에서만 중복되지 않으면** 됩니다(다른 매장과 같아도 됨). 로그인은 매장번호와 아이디를 함께 입력합니다.
+
 ## 1단계 설치 순서
-1. Supabase SQL Editor: `schema.sql`(또는 이미 실행했다면 `step1_auth.sql`) 실행
+1. Supabase SQL Editor: `schema.sql` 실행 (이미 실행했다면 `step1_auth.sql`, `step_unique_login.sql`을 순서대로 실행)
 2. Authentication: 관리자 사용자 생성(이메일 `000.admin@도메인`) → `seed_admin.sql` 실행, 외부 회원가입 끄기
 3. Edge Functions: `admin-users` 배포, Secrets에 `AUTH_DOMAIN` 등록
 4. `index.html`의 `AUTH_DOMAIN`을 같은 도메인으로 수정 → GitHub에 올리면 Netlify가 자동 배포
