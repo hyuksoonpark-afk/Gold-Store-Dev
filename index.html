@@ -370,6 +370,7 @@ function migCheck(wb,store){const err=[],er=(s,r,m,w)=>err.push({s,r,m,w}),D={ve
   if(code){if(seen.has(code))m.push('제품코드 중복: '+code);seen.add(code)}
   if(m.length)return er('제품',r._r,m.join(' / '));
   D.products.push({code,model:md,cat,vendor:vd,date:dt,mat,color:S(r['색상']),purity:S(r['순도'])||PUR[mat],size:S(r['사이즈']),total:tw,w24,w18,w14,labor:lab,stoneLabor:sl,vat,policy:pol,costRate:cr,mult:mu,directCost:dc,qty:q})});
+ if(SB){const np=(xRows(wb,'제품')||[]).length,nu=(xRows(wb,'직원ID')||[]).length;D.products=[];D.users=[];const E2=err.filter(e=>e.s!='제품'&&e.s!='직원ID');if(np||nu)E2.push({s:'제품·직원ID',r:'-',m:'제품 '+np+'행, 직원ID '+nu+'행은 아직 Supabase 이관을 지원하지 않아 건너뜁니다',w:1});return{D,err:E2}}
  return{D,err}}
 function migApply(D,store,mode){const R={},sn=Date.now();let seq=0;const nid=()=>sn+(seq++)/1000+Math.random()/1e6;
  const up=(k,arr,same,mk)=>{let a=0,u=0,s=0;arr.forEach(x=>{const ex=db[k].find(e=>e.store==store&&same(e,x));if(ex){if(mode=='over'){Object.assign(ex,mk(x));u++}else s++}else{db[k].push({...mk(x),store,_i:nid()});a++}});R[k]={a,u,s}};
@@ -389,7 +390,7 @@ function migFile(inp){const f=inp.files&&inp.files[0];if(!f)return;if(typeof XLS
  r.onload=e=>{try{mig.wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});mig.name=f.name;mig.res=migCheck(mig.wb,mig.store)}catch(err){mig.wb=null;mig.res=null;msg('엑셀 파일을 읽는 중 오류가 발생했습니다: '+hEsc(err.message))}inp.value='';migV()};r.readAsArrayBuffer(f)}
 function migConfirm(){const st=db.stores.find(s=>s.code==mig.store),D=mig.res.D;
  ovl(`<div class=card style="max-width:400px;width:100%;margin:0"><h3>데이터 이관 실행</h3><p><b>${hEsc(st.name)}</b> (${st.code}) 매장으로 이관합니다.<br>방식: ${mig.mode=='over'?'덮어쓰기(중복 코드 갱신)':'건너뛰기(중복 코드 유지)'}<br>업체 ${D.vendors.length} · 분류 ${D.cats.length} · 시세 ${D.rates.length} · 직원ID ${D.users.length} · 휴무일 ${D.holidays.length} · 제품 ${D.products.length}건</p><div class=row style="margin:0"><button class=p onclick=migRun()>실행</button><button onclick="document.getElementById('ovl').remove()">취소</button></div></div>`)}
-function migRun(){document.getElementById('ovl').remove();const R=migApply(mig.res.D,mig.store,mig.mode);
+function migRun(){if(SB)return sbMigRun();document.getElementById('ovl').remove();const R=migApply(mig.res.D,mig.store,mig.mode);
  db.migLog=(db.migLog||[]).concat({at:nowStr(),by:cur.id,store:mig.store,mode:mig.mode,file:mig.name,res:R});save();
  mig.res=null;mig.wb=null;mig.name='';msg(migSum(R),'이관 완료');migV()}
 function migPreview(){const R=mig.res,hard=R.err.filter(e=>!e.w),D=R.D,total=['vendors','cats','rates','users','holidays','products'].reduce((t,k)=>t+D[k].length,0)+(D.cfg?1:0);
@@ -420,7 +421,7 @@ async function sbEnter(user){
  if(error||!p){await SB.auth.signOut();throw new Error('profile')}
  if(!p.active||p.expires_on<today){await SB.auth.signOut();throw new Error('expired')}
  cur={id:p.login_id,name:p.full_name,tel:p.tel,grp:p.grp,store:p.store_code,exp:p.expires_on,uid:p.id,mustChange:p.must_change};
- await sbSyncStore(p.store_code);tab=menus()[0][0];shell();if(p.must_change)pwOpen(true)}
+ await sbSyncStore(p.store_code);await sbLoadMaster(p);tab=menus()[0][0];shell();if(p.must_change)pwOpen(true)}
 async function sbSyncStore(code){try{
  if(!db.stores.some(s=>s.code==code)){const q=await SB.from('stores').select('*').eq('store_code',code).maybeSingle();db.stores.push({code,name:q.data?q.data.store_name:code,biz:q.data?(q.data.biz_no||''):'',_i:Date.now()+Math.random()})}
  if(code!='000'&&!db.cats.some(c=>c.store==code)){['R:반지','N:목걸이','P:펜던트','B:팔찌','E:귀걸이','I:피어싱','S:형상','A:공시가','X:기타'].forEach(x=>{const a=x.split(':');db.cats.push({code:a[0],name:a[1],store:code,_i:Date.now()+Math.random()})})}
@@ -487,8 +488,71 @@ async function storesVsb(){$('#main').innerHTML='<h2>매장 등록</h2><p class=
 async function sbStoreSave(){const c=$('#st_c').value.trim(),n=$('#st_n').value.trim(),b=$('#st_b').value.trim();
  if(!c||!n)return toast('매장코드와 매장명을 입력하세요');
  if(sbStSel){const r=await SB.from('stores').update({store_name:n,biz_no:b}).eq('store_code',sbStSel);if(r.error)return msg(hEsc(r.error.message),'저장하지 못했습니다')}
- else{const r=await SB.from('stores').insert({store_code:c,store_name:n,biz_no:b});if(r.error)return msg(hEsc(r.error.message),'저장하지 못했습니다');await SB.from('store_config').insert({store_code:c})}
+ else{const r=await SB.from('stores').insert({store_code:c,store_name:n,biz_no:b});if(r.error)return msg(hEsc(r.error.message),'저장하지 못했습니다');await SB.from('store_config').insert({store_code:c});await SB.from('categories').upsert(DEF_CATS.map(x=>({store_code:c,cat_code:x[0],cat_name:x[1]})),{onConflict:'store_code,cat_code'})}
  sbStSel=null;toast('저장되었습니다');storesVsb()}
+// ---- Supabase 마스터 데이터 (업체·분류·시세·할인율·휴무일) ----
+const SBM={vendors:1,cats:1,rates:1};
+const DEF_CATS=[['R','반지'],['N','목걸이'],['P','펜던트'],['B','팔찌'],['E','귀걸이'],['I','피어싱'],['S','형상'],['A','공시가'],['X','기타']];
+const sbErr=e=>e.code=='23505'?'이미 등록된 코드입니다.':e.code=='23503'?'다른 데이터에서 사용 중이라 변경·삭제할 수 없습니다.':e.code=='42501'?'권한이 없습니다.':e.message;
+async function sbLoadMaster(p){const s=p.store_code;
+ try{
+  if(p.grp=='A'){const q=await SB.from('stores').select('*');(q.data||[]).forEach(x=>{if(!db.stores.some(e=>e.code==x.store_code))db.stores.push({code:x.store_code,name:x.store_name,biz:x.biz_no||'',_i:Date.now()+Math.random()})});return}
+  const R=await Promise.all([SB.from('vendors').select('*').eq('store_code',s),SB.from('categories').select('*').eq('store_code',s),
+   SB.from('rates').select('*').eq('store_code',s).order('rate_date',{ascending:false}).order('round_no',{ascending:false}).limit(1000),
+   SB.from('store_config').select('*').eq('store_code',s).maybeSingle(),SB.from('holidays').select('*').eq('store_code',s)]);
+  const bad=R.find(x=>x.error);if(bad)throw new Error(bad.error.message);
+  const cv=R[0].data,cr=R[2].data,ch=R[4].data;let cats=R[1].data,cfg=R[3].data;const mgr=p.grp=='M'||p.grp=='S';
+  if(!cats.length&&mgr){const rows=DEF_CATS.map(c=>({store_code:s,cat_code:c[0],cat_name:c[1]}));const u=await SB.from('categories').upsert(rows,{onConflict:'store_code,cat_code'});if(!u.error)cats=rows}
+  if(!cfg&&mgr){const u=await SB.from('store_config').upsert({store_code:s},{onConflict:'store_code'});if(!u.error)cfg={disc_pct:10,card_pct:3,disc_pub_pct:2.5,card_pub_pct:3}}
+  const rep=(k,arr)=>{db[k]=db[k].filter(x=>x.store!=s).concat(arr.map(x=>({...x,store:s,_i:Date.now()+Math.random()})))};
+  rep('vendors',cv.map(v=>({code:v.vendor_code,name:v.vendor_name,tel:v.tel||'',status:v.status,memo:v.memo||''})));
+  rep('cats',cats.map(c=>({code:c.cat_code,name:c.cat_name})));
+  rep('rates',cr.map(r=>({date:r.rate_date,round:r.round_no,au:r.gold,ag:r.silver,pt:r.platinum})));
+  rep('holidays',ch.map(h=>({date:h.hday,name:h.name,type:h.type})));
+  const nv=(v,d)=>Number.isFinite(parseFloat(v))?+v:d;
+  db.cfg[s]=cfg?{disc:nv(cfg.disc_pct,10),card:nv(cfg.card_pct,3),discA:nv(cfg.disc_pub_pct,2.5),cardA:nv(cfg.card_pub_pct,3)}:{disc:10,card:3,discA:2.5,cardA:3};
+  save()}catch(e){msg('기본 정보를 불러오지 못했습니다: '+hEsc(e.message),'불러오기 오류')}}
+const sbRel=()=>sbLoadMaster({store_code:cur.store,grp:cur.grp});
+async function sbMasterSave(o,r){const s=cur.store,K=o.k,old=edit>=0?db[K].find(x=>x._i===edit):null;
+ if(K=='rates'&&!r.date)return toast('일자를 입력하세요');
+ if(K=='rates'&&(!(r.au>0)||!(r.ag>0)||!(r.pt>0)||!(r.round>=1)))return toast('회차와 금·은·백금 시세를 모두 입력하세요');
+ const T={vendors:'vendors',cats:'categories',rates:'rates'}[K];
+ const row={vendors:()=>({store_code:s,vendor_code:r.code,vendor_name:r.name,tel:r.tel||null,status:r.status||'활성',memo:r.memo||null}),cats:()=>({store_code:s,cat_code:r.code,cat_name:r.name}),rates:()=>({store_code:s,rate_date:r.date,round_no:r.round,gold:r.au,silver:r.ag,platinum:r.pt})}[K]();
+ let q;
+ if(old){const ok=K=='rates'?{rate_date:old.date,round_no:old.round}:K=='vendors'?{vendor_code:old.code}:{cat_code:old.code};let b=SB.from(T).update(row).eq('store_code',s);for(const k in ok)b=b.eq(k,ok[k]);q=await b}
+ else q=K=='rates'?await SB.from(T).upsert(row,{onConflict:'store_code,rate_date,round_no'}):await SB.from(T).insert(row);
+ if(q.error)return msg(hEsc(sbErr(q.error)),'저장하지 못했습니다');
+ await sbRel();edit=-1;toast('저장되었습니다');shell()}
+async function sbMasterDel(o){const s=cur.store,K=o.k,old=db[K].find(x=>x._i===edit);if(!old)return;
+ const T={vendors:'vendors',cats:'categories',rates:'rates'}[K],ok=K=='rates'?{rate_date:old.date,round_no:old.round}:K=='vendors'?{vendor_code:old.code}:{cat_code:old.code};
+ let b=SB.from(T).delete().eq('store_code',s);for(const k in ok)b=b.eq(k,ok[k]);const q=await b;
+ if(q.error)return msg(hEsc(sbErr(q.error)),'삭제하지 못했습니다');
+ await sbRel();edit=-1;toast('삭제되었습니다');shell()}
+async function cfgSave(pub){const c=cfgNow(),a=pub?+$('#cda').value:+$('#cd').value,b=pub?+$('#cca').value:+$('#cc').value;
+ if(!(a>=0&&a<=100)||!(b>=0&&b<=100))return toast('0~100 사이 숫자를 입력하세요');
+ const n=pub?{discA:a,cardA:b}:{disc:a,card:b},m={...c,...n};
+ if(SB){const r=await SB.from('store_config').upsert({store_code:cur.store,disc_pct:m.disc,card_pct:m.card,disc_pub_pct:m.discA,card_pub_pct:m.cardA},{onConflict:'store_code'});if(r.error)return msg(hEsc(sbErr(r.error)),'저장하지 못했습니다')}
+ Object.assign(c,n);save();toast('저장되었습니다')}
+async function sbHSave(){const ty=$('#hty').value,nm=$('#hnm').value.trim()||(ty=='공휴일'?'공휴일':'매장 휴무');
+ const r=await SB.from('holidays').upsert({store_code:cur.store,hday:hSel,name:nm,type:ty},{onConflict:'store_code,hday'});if(r.error)return msg(hEsc(sbErr(r.error)),'저장하지 못했습니다');
+ await sbRel();toast('휴무일이 저장되었습니다');holV()}
+async function sbHDel(){const r=await SB.from('holidays').delete().eq('store_code',cur.store).eq('hday',hSel);if(r.error)return msg(hEsc(sbErr(r.error)),'해제하지 못했습니다');
+ await sbRel();toast('휴무일이 해제되었습니다');hSel=null;holV()}
+async function sbHFix(){const rows=HFIX.map(x=>({store_code:cur.store,hday:hY+'-'+x[0],name:x[1],type:'공휴일'})).filter(x=>!mine('holidays').some(h=>h.date==x.hday));
+ if(!rows.length)return toast('이미 모두 등록되어 있습니다');const r=await SB.from('holidays').insert(rows);if(r.error)return msg(hEsc(sbErr(r.error)),'등록하지 못했습니다');
+ await sbRel();toast(rows.length+'건의 고정 공휴일을 등록했습니다');holV()}
+async function sbMigRun(){document.getElementById('ovl').remove();const D=mig.res.D,s=mig.store,sk=mig.mode=='skip',R={};
+ const up=async(key,t,rows,conf)=>{if(!rows.length)return;const r=await SB.from(t).upsert(rows,{onConflict:conf,ignoreDuplicates:sk});if(r.error)throw new Error(MN[key]+': '+sbErr(r.error));R[key]=rows.length};
+ try{
+  await up('vendors','vendors',D.vendors.map(v=>({store_code:s,vendor_code:v.code,vendor_name:v.name,tel:v.tel||null,status:v.status,memo:v.memo||null})),'store_code,vendor_code');
+  await up('cats','categories',D.cats.map(c=>({store_code:s,cat_code:c.code,cat_name:c.name})),'store_code,cat_code');
+  await up('rates','rates',D.rates.map(r=>({store_code:s,rate_date:r.date,round_no:r.round,gold:r.au,silver:r.ag,platinum:r.pt})),'store_code,rate_date,round_no');
+  await up('holidays','holidays',D.holidays.map(h=>({store_code:s,hday:h.date,name:h.name,type:h.type})),'store_code,hday');
+  if(D.cfg){const c=Object.assign({disc:10,card:3,discA:2.5,cardA:3},D.cfg);await up('cfg','store_config',[{store_code:s,disc_pct:c.disc,card_pct:c.card,disc_pub_pct:c.discA,card_pub_pct:c.cardA}],'store_code')}
+ }catch(e){return msg(hEsc(e.message),'이관 중 오류')}
+ db.migLog=(db.migLog||[]).concat({at:nowStr(),by:cur.id,store:s,mode:mig.mode,file:mig.name,res:Object.fromEntries(Object.keys(R).map(k=>[k,{a:R[k],u:0,s:0}]))});save();
+ mig.res=null;mig.wb=null;mig.name='';
+ msg((Object.keys(R).map(k=>MN[k]+' '+R[k]+'건 처리').join('<br>')||'처리할 데이터가 없었습니다')+'<br><small>방식: '+(sk?'건너뛰기(기존 코드 유지)':'덮어쓰기')+' · 제품·직원ID는 아직 Supabase 이관 미지원</small>','이관 완료');migV()}
 // ---- 제품 사진 ----
 let pPh=[],pPhKey=null;
 const phIcon=(c,s)=>{const p=db.products.find(x=>x.code==c&&x.store==s);return p&&p.photos&&p.photos.length?`<button class=ph title="사진 보기" onclick="event.stopPropagation();showPh('${c}','${s}')">📷</button>`:''};
@@ -521,10 +585,10 @@ let hY=new Date().getFullYear(),hM=new Date().getMonth(),hSel=null;
 const HFIX=[['01-01','신정'],['03-01','삼일절'],['05-05','어린이날'],['06-06','현충일'],['08-15','광복절'],['10-03','개천절'],['10-09','한글날'],['12-25','성탄절']],DN=['일','월','화','수','목','금','토'];
 const hEsc=s=>String(s||'').replace(/</g,'&lt;').replace(/"/g,'&quot;');
 function hNav(n){hM+=n;if(hM<0){hM=11;hY--}if(hM>11){hM=0;hY++}hSel=null;holV()}
-function hFix(){let c=0;HFIX.forEach(([md,nm])=>{const s=hY+'-'+md;if(!mine('holidays').some(h=>h.date==s)){db.holidays.push({date:s,name:nm,type:'공휴일',store:cur.store});c++}});save();toast(c+'건의 고정 공휴일을 등록했습니다');holV()}
-function hSave(){const ty=$('#hty').value,nm=$('#hnm').value.trim()||(ty=='공휴일'?'공휴일':'매장 휴무'),ex=db.holidays.find(h=>h.date==hSel&&h.store==cur.store);
+function hFix(){if(SB)return sbHFix();let c=0;HFIX.forEach(([md,nm])=>{const s=hY+'-'+md;if(!mine('holidays').some(h=>h.date==s)){db.holidays.push({date:s,name:nm,type:'공휴일',store:cur.store});c++}});save();toast(c+'건의 고정 공휴일을 등록했습니다');holV()}
+function hSave(){if(SB)return sbHSave();const ty=$('#hty').value,nm=$('#hnm').value.trim()||(ty=='공휴일'?'공휴일':'매장 휴무'),ex=db.holidays.find(h=>h.date==hSel&&h.store==cur.store);
  if(ex){ex.type=ty;ex.name=nm}else db.holidays.push({date:hSel,name:nm,type:ty,store:cur.store});save();toast('휴무일이 저장되었습니다');holV()}
-function hDel(){db.holidays=db.holidays.filter(h=>!(h.date==hSel&&h.store==cur.store));save();toast('휴무일이 해제되었습니다');hSel=null;holV()}
+function hDel(){if(SB)return sbHDel();db.holidays=db.holidays.filter(h=>!(h.date==hSel&&h.store==cur.store));save();toast('휴무일이 해제되었습니다');hSel=null;holV()}
 function holV(){
  const L=mine('holidays'),map={};L.forEach(h=>map[h.date]=h);
  const days=new Date(hY,hM+1,0).getDate(),pad=new Date(hY,hM,1).getDay();
@@ -659,8 +723,8 @@ function ratesView(){
  $('#main').innerHTML=`<h2>시세 변동 이력</h2><div class=card><div class=tw><table><tr><th>일자<th>회차<th>금(원/돈)<th>은(원/돈)<th>백금(원/돈)</tr>${L.map(r=>`<tr><td>${r.date}<td>${r.round}<td>${fmt(r.au)}<td>${fmt(r.ag)}<td>${fmt(r.pt)}</tr>`).join('')}</table></div>${moreBar(A.length)}</div>`;
 }
 function discV(){const c=cfgNow();
- $('#main').innerHTML=`<h2>할인율 등록</h2><div class=card><h3>① 기준시세·단가제 할인율 (할인가 = 정상가 ÷ (1+할인율))</h3><div class=row><div><label>할인율(%)<input id=cd type=number value=${c.disc}></label></div><div><label>카드 가산율(%)<input id=cc type=number value=${c.card}></label></div><button class=p onclick="cfgNow().disc=+$('#cd').value;cfgNow().card=+$('#cc').value;save();toast('저장되었습니다')">비율 저장</button></div></div>
- <div class=card><h3>② 공시가제 할인율 (공시 정상가 기준)</h3><div class=row><div><label>할인율(%)<input id=cda type=number value=${c.discA}></label></div><div><label>카드 가산율(%)<input id=cca type=number value=${c.cardA}></label></div><button class=p onclick="cfgNow().discA=+$('#cda').value;cfgNow().cardA=+$('#cca').value;save();toast('저장되었습니다')">비율 저장</button></div><p class=note>가격정책이 공시가제인 제품에만 적용되며, 제품 조회·판매 등록에 반영됩니다.</p></div>`}
+ $('#main').innerHTML=`<h2>할인율 등록</h2><div class=card><h3>① 기준시세·단가제 할인율 (할인가 = 정상가 ÷ (1+할인율))</h3><div class=row><div><label>할인율(%)<input id=cd type=number value=${c.disc}></label></div><div><label>카드 가산율(%)<input id=cc type=number value=${c.card}></label></div><button class=p onclick="cfgSave(false)">비율 저장</button></div></div>
+ <div class=card><h3>② 공시가제 할인율 (공시 정상가 기준)</h3><div class=row><div><label>할인율(%)<input id=cda type=number value=${c.discA}></label></div><div><label>카드 가산율(%)<input id=cca type=number value=${c.cardA}></label></div><button class=p onclick="cfgSave(true)">비율 저장</button></div><p class=note>가격정책이 공시가제인 제품에만 적용되며, 제품 조회·판매 등록에 반영됩니다.</p></div>`}
 function regr(){
  const c=cfgNow(),all=rSort(mine('rates'));crud({t:'시세 등록',k:'rates',list:all.slice(0,rLim),post:moreBar(all.length),cols:['date','round','au','ag','pt'],f:[['date','일자','date'],['round','회차','number'],['au','금 시세(원/돈)','number'],['ag','은 시세(원/돈)','number'],['pt','백금 시세(원/돈)','number']],def:{date:today,round:1},
  preOld:`<div class=card><h3>① 기준시세·단가제 할인율 (할인가 = 정상가 ÷ (1+할인율))</h3><div class=row><div><label>할인율(%)<input id=cd type=number value=${c.disc}></label></div><div><label>카드 가산율(%)<input id=cc type=number value=${c.card}></label></div><button onclick="cfgNow().disc=+$('#cd').value;cfgNow().card=+$('#cc').value;save();toast('저장되었습니다')">비율 저장</button></div></div><div class=card><h3>② 공시가제 제품 할인율 (공시 정상가 기준)</h3><div class=row><div><label>할인율(%)<input id=cda type=number value=${c.discA}></label></div><div><label>카드 가산율(%)<input id=cca type=number value=${c.cardA}></label></div><button onclick="cfgNow().discA=+$('#cda').value;cfgNow().cardA=+$('#cca').value;save();toast('저장되었습니다')">비율 저장</button></div><p class=note>가격정책이 공시가제인 제품에만 적용되며, 제품 조회·판매 등록에 반영됩니다.</p></div>`});
@@ -682,13 +746,14 @@ function cSave(){
  if(o.k=='products'){if(!r.code){const ym=r.date.slice(2,4)+r.date.slice(5,7),n=db.products.filter(p=>p.store==cur.store&&p.code.startsWith(ym)).length+1;r.code=ym+String(n).padStart(3,'0')}}
  else if(!r[o.f[0][0]]&&o.f[0][2]=='text')return toast('필수 항목을 입력하세요');
  if(o.pk&&db[o.k].some(x=>x[o.pk]==r[o.pk]&&x._i!==edit&&(o.k=='stores'||x.store==(o.k=='users'&&r.store?r.store:cur.store))))return toast('이미 등록된 코드입니다');
+ if(SB&&SBM[o.k])return sbMasterSave(o,r);
  if(o.k=='products')r.photos=pPh.slice();
  const ex=edit>=0&&db[o.k].find(x=>x._i===edit);
  if(ex)Object.assign(ex,r);else{r.store=r.store||cur.store;r._i=Date.now();db[o.k].push(r)}
  db.products.concat(db.users).forEach((x,i)=>x._i=x._i??i+Date.now()+Math.random());
  db[o.k].forEach((x,i)=>x._i=x._i??Date.now()+i);edit=-1;pPhKey=null;save();toast('저장되었습니다');shell();
 }
-function cDel(){const o=window._o;if(window._da!==edit){window._da=edit;return toast('삭제하려면 한 번 더 누르세요')}window._da=null;db[o.k]=db[o.k].filter(x=>x._i!==edit);edit=-1;save();shell()}
+function cDel(){const o=window._o;if(window._da!==edit){window._da=edit;return toast('삭제하려면 한 번 더 누르세요')}window._da=null;if(SB&&SBM[o.k])return sbMasterDel(o);db[o.k]=db[o.k].filter(x=>x._i!==edit);edit=-1;save();shell()}
 Object.keys(db).forEach(k=>Array.isArray(db[k])&&db[k].forEach((x,i)=>x._i=x._i??Date.now()+i+Math.random()));
 const opt=(k,l)=>()=>mine(k).map(x=>[x.code,x.code+' '+x.name]);
 function regp(){if(pPhKey!==edit){pPhKey=edit;const r0=edit>=0?db.products.find(x=>x._i===edit):null;pPh=r0&&r0.photos?r0.photos.slice():[]}
