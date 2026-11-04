@@ -216,7 +216,7 @@ function cSet(id,k,v){const l=cart().find(x=>x.id==id),p=l&&prodOf(l.code);if(!l
  else if(k=='qty'){l.qty=Math.max(1,Math.round(+v)||1);l.amt=l.unit*l.qty}
  else if(k=='amt'){l.amt=Math.max(0,+v||0);l.unit=l.amt/l.qty}
  save();cartV()}
-function cSpec(id,k,v){const l=cart().find(x=>x.id==id),p=l&&prodOf(l.code);if(!l||!p)return;const s=l.spec;
+function cSpec(id,k,v){const l=cart().find(x=>x.id==id),p=l&&prodOf(l.code);if(!l||!p)return;if(!l.spec)l.spec=mkSpec(p);if(l.kind!='order'){l.kind='order';toast('사양을 바꾸면 주문으로 전환됩니다')}const s=l.spec;
  if(k=='mat'){s.mat=v;s.w=+g3(oW(p,v).w);s.purity=v==p.mat?p.purity:PUR[v]}else if(k=='w')s.w=+v||0;else s[k]=v;
  if(k!='note'&&k!='deposit'){l.unit=lCalc(l,p)[l.type];l.amt=l.unit*l.qty}save();cartV()}
 function cDelLine(id){db.carts[cur.id]=cart().filter(l=>l.id!=id);save();shell()}
@@ -238,7 +238,7 @@ function cartV(){
  if(!L.length){$('#main').innerHTML=h+'<div class=card><p class=note style="margin:0">장바구니가 비어 있습니다. 제품 조회에서 제품을 선택해 장바구니 담기를 눌러 주세요.</p></div>';return}
  h+=`<div class=card><div class=kv><div><span>선택 항목</span>${on.length}/${L.length}건</div><div><span>판매 합계</span>${fmt(sum(sS))}원 (${sS.length}건)</div><div><span>주문 예정 합계</span>${fmt(sum(sO))}원 (${sO.length}건)</div></div></div>`;
  if(L.some(l=>l.kind=='order'))h+=`<div class=card><h3>주문 고객 정보 (주문 항목 공통)</h3><div class=grid><div><label>고객명<input value="${hEsc(cc.n)}" oninput="cc.n=this.value"></label></div><div><label>전화번호<input type=tel value="${hEsc(cc.tel)}" oninput="cc.tel=this.value"></label></div><div><label>출고 예정일<input type=date value="${cc.due||nextBiz(addDays(14))}" oninput="cc.due=this.value"></label></div></div></div>`;
- h+=L.map(l=>{const p=prodOf(l.code),c=lCalc(l,p),id=l.id;
+ h+=L.map(l=>{const p=prodOf(l.code);if(!l.spec)l.spec=mkSpec(p);const c=lCalc(l,p),id=l.id;
   return `<div class=card style="${l.on?'':'opacity:.6'}"><div class=row style="margin:0 0 8px;justify-content:space-between;align-items:center">
    <label style="display:flex;gap:6px;align-items:center;color:var(--tx);font-size:15px"><input type=checkbox style="width:auto" ${l.on?'checked':''} onchange="cSet('${id}','on',this.checked)"><b>${hEsc(p.model)}</b> <span class=tag>${p.code}</span> ${phIcon(p.code,p.store)}</label>
    <button class=d onclick="cDelLine('${id}')">✕ 삭제</button></div>
@@ -248,7 +248,7 @@ function cartV(){
    <div><label>수량 (재고 ${p.qty})<input type=number min=1 value=${l.qty} onchange="cSet('${id}','qty',this.value)"></label></div>
    <div><label>${l.kind=='sale'?'최종 판매금액(원)':'예정 금액(원)'}<input type=number min=0 value=${Math.round(l.amt)} onchange="cSet('${id}','amt',this.value)"></label></div></div>
    <p class=note style="margin:8px 0 0">${l.kind=='order'?'예정가':'현재가'} · 정상가 ${c.pol=='P'&&!c.base?'공시가 입력 필요':fmt(c.base)} · 할인가 ${fmt(c.disc)} · 카드가 ${fmt(c.card)}</p>
-   ${l.kind=='order'?specGrid(l,p):''}</div>`}).join('');
+   ${l.kind=='order'?specGrid(l,p):`<details style="margin-top:8px"><summary class=note style="cursor:pointer">사이즈·순도·색상·중량·업체 등 변경 (변경하면 주문으로 전환)</summary>${specGrid(l,p)}</details>`}</div>`}).join('');
  h+=`<div class=card><div class=row style="margin:0"><button class=p onclick=cOut()>선택 항목 등록 (판매 ${sS.length}건 · 주문 ${sO.length}건)</button><button onclick=cDelSel()>선택 항목 삭제</button><button class=d onclick=cClear()>장바구니 비우기</button></div><p class=note>체크한 항목만 등록되며, 구매하지 않을 제품은 ✕ 삭제하거나 체크를 해제하세요. 등록된 항목은 장바구니에서 빠집니다.</p></div>`;
  $('#main').innerHTML=h}
 function cOut(){const L=cart().filter(l=>l.on);if(!L.length)return msg('등록할 항목을 선택하세요.');
