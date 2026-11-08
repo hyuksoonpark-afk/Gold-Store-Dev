@@ -5,7 +5,8 @@
 ## 현재 단계
 - **로그인·사용자·매장 관리: Supabase 사용** (이 배포본은 `APP_CONFIG.MODE = 'supabase'`)
 - **마스터 데이터(업체, 분류, 시세, 할인율, 휴무일): Supabase 사용** (2-1단계 완료)
-- **제품·사진·판매·장바구니·주문: 아직 브라우저 저장소** → 2-2단계부터 Supabase로 교체 예정
+- **제품·사진: Supabase 사용** (2-2단계 완료, 직원에게는 매입원가가 DB에서 차단됨)
+- **판매·장바구니·주문: 아직 브라우저 저장소** → 2-3단계부터 Supabase로 교체 예정 (그때까지 판매 등록은 막혀 있음)
 
 ## 폴더 구성
 | 경로 | 설명 |
@@ -15,6 +16,7 @@
 | `supabase/schema.sql` | 테이블·권한 정책(RLS)·서버 함수 |
 | `supabase/seed_admin.sql` | 최초 Administrator 계정 연결 |
 | `supabase/step1_auth.sql` | 1단계 보조 함수 (schema.sql을 이미 실행했다면 추가 실행) |
+| `supabase/step2_products.sql` | 2-2단계: 직원용 제품 뷰 교체, 사진 저장소(버킷·권한) 생성 |
 | `supabase/step_unique_login.sql` | 이미 실행한 DB에서 아이디를 **매장별로 유일**하게 바꾸는 SQL |
 | `supabase/functions/admin-users/index.ts` | 계정 생성·비밀번호 초기화 Edge Function |
 | `templates/금거래소_데이터이관_템플릿.xlsx` | 기존 매장 자료 이관용 엑셀 템플릿 |

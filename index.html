@@ -89,7 +89,7 @@ function calc(p){
  const perDon=p.mat=='PT'?r.pt:p.mat=='Ag'?r.ag:r.au;
  const stone=Math.max(0,p.total-p.w24-p.w18-p.w14),lab=+p.labor+ +p.stoneLabor;
  const vf=p.vat==0?1.1:1,tag=Math.ceil(lab*2.5*vf/100)*100,gold=perDon/W*conv,pol=p.policy||'S',cg=(+p.costRate>0?+p.costRate:perDon)/W*conv,cost=pol!='S'?(+p.directCost||0):cg+lab,c=cfgNow();
- const base=pol=='U'?cost*vf*(+p.mult||1):pol=='P'?(+PUB[p.store+p.code]||0):gold+tag,A=pol=='P',dp=A?c.discA:c.disc,cp=A?c.cardA:c.card;const R=n=>Math.round(n/1000)*1000,b=R(base);return{conv,stone,lab,tag,gold,cost,base:b,dp,cp,pol,cg,disc:R(pol=='P'?b*(1-dp/100):b/(1+dp/100)),card:R(b*(1+cp/100))};
+ const base=pol=='U'?(p.uBase!=null?+p.uBase:cost*vf*(+p.mult||1)):pol=='P'?(+PUB[p.store+p.code]||0):gold+tag,A=pol=='P',dp=A?c.discA:c.disc,cp=A?c.cardA:c.card;const R=n=>Math.round(n/1000)*1000,b=R(base);return{conv,stone,lab,tag,gold,cost,base:b,dp,cp,pol,cg,disc:R(pol=='P'?b*(1-dp/100):b/(1+dp/100)),card:R(b*(1+cp/100))};
 }
 const PUB={};const PN={S:'기준시세',U:'단가제',P:'공시가제'};
 const ds=g=>g3(g)+'g / '+g3(g/W)+'돈';
@@ -125,12 +125,12 @@ const go=t=>{tab=t;sel=null;edit=-1;rLim=30;pPhKey=null;shell()};
 // ---- 제품 조회 / 판매 ----
 function look(){
  const M=cur.grp=='M'||cur.grp=='S',q=(window.lq||'').trim();
- const list=!lGo?[]:mine('products').filter(p=>(lAll||p.qty>0)&&(!q||p.code.includes(q)||p.model.toLowerCase().includes(q.toLowerCase())));
+ const list=!lGo?[]:SB?lRes.map(prodOf).filter(Boolean):mine('products').filter(p=>(lAll||p.qty>0)&&(!q||p.code.includes(q)||p.model.toLowerCase().includes(q.toLowerCase())));
  const cn=c=>(db.cats.find(x=>x.code==c&&x.store==cur.store)||{}).name||c,vn=c=>(db.vendors.find(x=>x.code==c&&x.store==cur.store)||{}).name||c;
  let h=`<h2>제품 조회</h2><div class=card><div class=row><div style="flex:1"><label>제품코드 / 모델명<input id=q value="${q}" onkeydown="if(event.key=='Enter')sq()"></label></div>
  <div><label style="display:flex;gap:6px;align-items:center;color:var(--tx);font-size:14px"><input id=qa type=checkbox style="width:auto" ${lAll?'checked':''}>재고 없는 제품도 보기</label></div><button class=p onclick=sq()>조회</button><button onclick="toast('실제 앱에서는 카메라로 QR 코드를 스캔합니다');">QR 스캔</button></div>
  </div>
- <div class=card>${lGo?`<p class=note style="margin:0 0 8px">검색 결과 ${list.length}건${list.length>100?' (상위 100건만 표시, 조건을 더 좋혀 주세요)':''}</p>`:''}<div class=tw><table><tr><th>코드<th>모델<th>분류<th>재질<th>총중량<th>정상가<th>재고</tr>${list.slice(0,100).map(p=>{const c=calc(p);return`<tr class=r onclick="pick('${p.code}')"><td>${p.code}<td>${p.model} ${phIcon(p.code,p.store)}<td>${cn(p.cat)}<td>${p.mat}K/${p.purity}<td>${g3(p.total)}g<td>${c.pol=='P'&&!c.base?'공시가 입력':fmt(c.base)}<td>${p.qty}</tr>`}).join('')||'<tr><td>'+(lGo?'조건에 맞는 제품이 없습니다':'검색 조건을 입력하고 [조회]를 눌러주세요')}</table></div></div>`;
+ <div class=card>${lGo?`<p class=note style="margin:0 0 8px">검색 결과 ${SB?lTotal:list.length}건${(SB?lTotal:list.length)>100?' (상위 100건만 표시, 조건을 더 좋혀 주세요)':''}</p>`:''}<div class=tw><table><tr><th>코드<th>모델<th>분류<th>재질<th>총중량<th>정상가<th>재고</tr>${list.slice(0,100).map(p=>{const c=calc(p);return`<tr class=r onclick="pick('${p.code}')"><td>${p.code}<td>${p.model} ${phIcon(p.code,p.store)}<td>${cn(p.cat)}<td>${p.mat}K/${p.purity}<td>${g3(p.total)}g<td>${c.pol=='P'&&!c.base?'공시가 입력':fmt(c.base)}<td>${p.qty}</tr>`}).join('')||'<tr><td>'+(lGo?'조건에 맞는 제품이 없습니다':'검색 조건을 입력하고 [조회]를 눌러주세요')}</table></div></div>`;
  if(sel){const p=db.products.find(x=>x.code==sel&&x.store==cur.store);if(p){const c=calc(p);
   const k=sv.code==p.code?sv:{pt:'base',sn:1,sa:Math.round(c.base)};const mgAmt=(t,v)=>p.vat==0?(t=='base'?v-c.cost*1.1:t=='disc'?v-c.cost:v-c.cost*1.13):(t=='base'?v-c.cost:t=='disc'?v-c.cost/1.1:v/(1+c.cp/100)-c.cost);
   const mg=(v,t)=>v?`${fmt(mgAmt(t,v))}원 (${(mgAmt(t,v)/v*100).toFixed(1)}%)`:'공시가 입력 필요';
@@ -146,10 +146,10 @@ function look(){
  $('#main').innerHTML=h;if(ord&&ord==sel)oCalc();
 }
 let sv={},lGo=false,lAll=false,ord=null;const keepSale=()=>{sv={code:sel,pt:$('#pt').value,sn:$('#sn').value,sa:$('#sa').value}};
-const sq=()=>{window.lq=$('#q').value;lAll=$('#qa').checked;lGo=true;sel=null;look()},pick=c=>{sel=c;det=false;sv={};ord=null;look();$('#main').lastElementChild.scrollIntoView({behavior:'smooth'})};
+const sq=()=>{window.lq=$('#q').value;lAll=$('#qa').checked;lGo=true;sel=null;if(SB)return sbSearch();look()},pick=c=>{sel=c;det=false;sv={};ord=null;look();$('#main').lastElementChild.scrollIntoView({behavior:'smooth'})};
 function setPub(code){PUB[cur.store+code]=+$('#pub').value||0;sv={};look()}
 function lAuto(code){const p=db.products.find(x=>x.code==code&&x.store==cur.store);$('#sa').value=Math.round(calc(p)[$('#pt').value]*(+$('#sn').value||0))}
-function sell(code){
+function sell(code){if(SB)return msg('판매 등록은 2-3단계에서 Supabase 판매 기록으로 전환됩니다. 지금은 제품 조회, 장바구니(주문), 주문 등록을 사용할 수 있습니다.','판매 등록 준비 중');
  const p=db.products.find(x=>x.code==code&&x.store==cur.store),n=+$('#sn').value,c=calc(p),t=$('#pt').value,a=+$('#sa').value;
  if(!(a>=0))return toast('판매금액을 확인하세요');
  if(c.pol=='P'&&!c.base)return toast('공시 정상가를 먼저 입력하세요');
@@ -230,8 +230,8 @@ const specGrid=(l,p)=>{const s=l.spec,id=l.id,au=oW(p,s.mat).auto;
  <div><label>예상 중량(g)<input type=number step=0.001 min=0 value=${g3(s.w)} onchange="cSpec('${id}','w',this.value)"></label></div>
  <div><label>업체<select onchange="cSpec('${id}','vendor',this.value)">${vendorOpts(s.vendor)}</select></label></div></div>
  <div style="margin-top:8px"><label>비고 (특별 주문 내용)<input value="${hEsc(s.note)}" onchange="cSpec('${id}','note',this.value)"></label></div><div style="margin-top:8px"><label>비고 (계약금 내역)<input placeholder="예: 계약금, 결제 방식 등" value="${hEsc(s.deposit||'')}" onchange="cSpec('${id}','deposit',this.value)"></label></div>${au?'':'<p class=note>24K·은이 포함된 재질 변경은 변경 후 중량을 직접 입력하세요.</p>'}`};
-function cartV(){
- const L=cart().filter(l=>prodOf(l.code));db.carts[cur.id]=L;
+function cartV(){if(SB&&sbNeed('c'))return;
+ const L=cart().filter(l=>prodOf(l.code));if(!SB)db.carts[cur.id]=L;
  const TN={base:'정상가',disc:'할인가',card:'카드가'},opt=(arr,v)=>arr.map(a=>`<option value="${a[0]}" ${v==a[0]?'selected':''}>${a[1]}</option>`).join('');
  const on=L.filter(l=>l.on),sS=on.filter(l=>l.kind=='sale'),sO=on.filter(l=>l.kind=='order'),sum=a=>a.reduce((t,l)=>t+l.amt,0);
  let h='<h2>장바구니</h2>';
@@ -255,7 +255,7 @@ function cOut(){const L=cart().filter(l=>l.on);if(!L.length)return msg('등록�
  let ns=0,no=0,amt=0;const fail=[];
  L.forEach((l,k)=>{const p=prodOf(l.code);if(!p)return;const c=lCalc(l,p);
   if(c.pol=='P'&&!c.base){fail.push(`${hEsc(p.model)}: 공시 정상가 미입력`);return}
-  if(l.kind=='sale'){if(l.qty>p.qty){fail.push(`${hEsc(p.model)}: 재고 부족 (재고 ${p.qty}, 요청 ${l.qty})`);return}
+  if(l.kind=='sale'){if(SB){fail.push(`${hEsc(p.model)}: 판매 등록은 2-3단계에서 지원됩니다`);return}if(l.qty>p.qty){fail.push(`${hEsc(p.model)}: 재고 부족 (재고 ${p.qty}, 요청 ${l.qty})`);return}
    const c0=calc(p);p.qty-=l.qty;db.sales.push({id:'s'+Date.now()+k,code:l.code,n:l.qty,type:l.type,amt:l.amt,unit:l.amt/l.qty,cost:c0.cost*l.qty,date:today,user:cur.id,store:cur.store});ns++;amt+=l.amt}
   else{const s=l.spec;db.orders.push({id:'o'+Date.now()+k,status:'주문',store:cur.store,code:l.code,model:p.model,date:today,user:cur.id,qty:l.qty,note:s.note||'',deposit:s.deposit||'',cust:cc.n.trim(),tel:cc.tel.trim()=='010-'?'':cc.tel.trim(),due:cc.due||nextBiz(addDays(14)),from:{vendor:p.vendor,mat:p.mat,purity:p.purity,size:p.size,color:p.color,w:origW(p)},to:{vendor:s.vendor,mat:s.mat,purity:s.purity,size:s.size,color:s.color,w:+s.w},snap:mkSnap(c),base:c.base,disc:c.disc,card:c.card});no++}
   l.done=true});
@@ -263,7 +263,7 @@ function cOut(){const L=cart().filter(l=>l.on);if(!L.length)return msg('등록�
  msg(`판매 ${ns}건(${fmt(amt)}원), 주문 ${no}건을 등록했습니다.${fail.length?'<br><br>등록하지 못한 항목 (장바구니에 남겨 두었습니다)<br>· '+fail.join('<br>· '):''}`,'등록 결과');shell()}
 // ---- 제품 목록 검색 (제품 등록) ----
 let pF={q:'',cat:'',vd:'',mat:'',pol:'',st:'',so:'new'};
-function pList(){const f=pF,vn=c=>vName(c,cur.store)||'';
+function pList(){if(SB)return pRes;const f=pF,vn=c=>vName(c,cur.store)||'';
  const L=mine('products').filter(p=>(!f.q||p.code.includes(f.q)||String(p.model).toLowerCase().includes(f.q.toLowerCase()))&&(!f.cat||p.cat==f.cat)&&(!f.vd||p.vendor==f.vd)&&(!f.mat||p.mat==f.mat)&&(!f.pol||(p.policy||'S')==f.pol)&&(!f.st||(f.st=='in'?p.qty>0:p.qty<=0)));
  const cmp={new:(a,b)=>a.date==b.date?(a.code<b.code?1:-1):(a.date<b.date?1:-1),old:(a,b)=>a.date==b.date?(a.code>b.code?1:-1):(a.date>b.date?1:-1),code:(a,b)=>a.code>b.code?1:-1,model:(a,b)=>String(a.model).localeCompare(String(b.model),'ko'),vendor:(a,b)=>String(vn(a.vendor)).localeCompare(String(vn(b.vendor)),'ko')};
  return L.sort(cmp[f.so]||cmp.new)}
@@ -421,7 +421,7 @@ async function sbEnter(user){
  if(error||!p){await SB.auth.signOut();throw new Error('profile')}
  if(!p.active||p.expires_on<today){await SB.auth.signOut();throw new Error('expired')}
  cur={id:p.login_id,name:p.full_name,tel:p.tel,grp:p.grp,store:p.store_code,exp:p.expires_on,uid:p.id,mustChange:p.must_change};
- await sbSyncStore(p.store_code);await sbLoadMaster(p);tab=menus()[0][0];shell();if(p.must_change)pwOpen(true)}
+ await sbSyncStore(p.store_code);await sbLoadMaster(p);if(p.grp!='A'){db.products=db.products.filter(x=>x.store!=p.store_code);sbTried.clear()}tab=menus()[0][0];shell();if(p.must_change)pwOpen(true)}
 async function sbSyncStore(code){try{
  if(!db.stores.some(s=>s.code==code)){const q=await SB.from('stores').select('*').eq('store_code',code).maybeSingle();db.stores.push({code,name:q.data?q.data.store_name:code,biz:q.data?(q.data.biz_no||''):'',_i:Date.now()+Math.random()})}
  if(code!='000'&&!db.cats.some(c=>c.store==code)){['R:반지','N:목걸이','P:펜던트','B:팔찌','E:귀걸이','I:피어싱','S:형상','A:공시가','X:기타'].forEach(x=>{const a=x.split(':');db.cats.push({code:a[0],name:a[1],store:code,_i:Date.now()+Math.random()})})}
@@ -553,17 +553,65 @@ async function sbMigRun(){document.getElementById('ovl').remove();const D=mig.re
  db.migLog=(db.migLog||[]).concat({at:nowStr(),by:cur.id,store:s,mode:mig.mode,file:mig.name,res:Object.fromEntries(Object.keys(R).map(k=>[k,{a:R[k],u:0,s:0}]))});save();
  mig.res=null;mig.wb=null;mig.name='';
  msg((Object.keys(R).map(k=>MN[k]+' '+R[k]+'건 처리').join('<br>')||'처리할 데이터가 없었습니다')+'<br><small>방식: '+(sk?'건너뛰기(기존 코드 유지)':'덮어쓰기')+' · 제품·직원ID는 아직 Supabase 이관 미지원</small>','이관 완료');migV()}
+// ---- Supabase 제품·사진 (2-2단계) ----
+const PT=()=>cur.grp=='U'?'products_staff':'products';
+let lRes=[],lTotal=0,pRes=[],pTot=0;const sbTried=new Set(),sbUrl={},sbUT=new Set();
+const rowToProd=r=>({code:r.product_code,model:r.model_name,cat:r.cat_code,vendor:r.vendor_code,date:r.in_date||'',mat:r.material,color:r.color||'',purity:r.purity||'',size:r.size||'',total:+r.total_wt_g,w24:+r.pure_wt_g,w18:+r.wt18_g,w14:+r.wt14_g,
+ labor:r.base_labor!=null?+r.base_labor:+(r.labor_sum||0),stoneLabor:+(r.stone_labor||0),vat:r.vat_flag,policy:r.policy,costRate:+(r.cost_rate||0),mult:+(r.sale_mult||0),directCost:+(r.direct_cost||0),qty:r.qty,uBase:r.u_base!=null?+r.u_base:null,store:r.store_code,photos:[]});
+function sbCache(rows){return rows.map(p=>{const i=db.products.findIndex(x=>x.store==p.store&&x.code==p.code),o={...p,_i:Date.now()+Math.random()};if(i>=0)db.products[i]=o;else db.products.push(o);return o})}
+async function sbAttachPhotos(ps){if(!ps.length)return;const r=await SB.from('product_photos').select('product_code,storage_path,sort_no').eq('store_code',cur.store).in('product_code',ps.map(p=>p.code)).order('sort_no');
+ if(r.error)return;ps.forEach(p=>{p.photos=(r.data||[]).filter(x=>x.product_code==p.code).map(x=>x.storage_path)})}
+async function sbFetchCodes(codes){for(let i=0;i<codes.length;i+=100){const r=await SB.from(PT()).select('*').eq('store_code',cur.store).in('product_code',codes.slice(i,i+100));if(!r.error){const ps=sbCache((r.data||[]).map(rowToProd));await sbAttachPhotos(ps)}}}
+function sbNeed(kind){const codes=kind=='o'?mine('orders').map(o=>o.code):kind=='s'?mine('sales').map(s=>s.code):cart().map(l=>l.code);
+ const miss=[...new Set(codes)].filter(c=>!prodOf(c)&&!sbTried.has(cur.store+c));if(!miss.length)return false;
+ miss.forEach(c=>sbTried.add(cur.store+c));$('#main').innerHTML='<p class=note>불러오는 중...</p>';sbFetchCodes(miss).then(()=>shell());return true}
+const sbOr=k=>{const e=String(k||'').replace(/[%,()*]/g,' ').trim();return e?`product_code.ilike.%${e}%,model_name.ilike.%${e}%`:''};
+async function sbSearch(){let q=SB.from(PT()).select('*',{count:'exact'}).eq('store_code',cur.store);const k=sbOr((window.lq||'').trim());if(k)q=q.or(k);if(!lAll)q=q.gt('qty',0);
+ const r=await q.order('product_code',{ascending:false}).limit(100);if(r.error)return msg(hEsc(sbErr(r.error)),'조회하지 못했습니다');
+ const ps=sbCache((r.data||[]).map(rowToProd));await sbAttachPhotos(ps);lRes=ps.map(p=>p.code);lTotal=r.count==null?ps.length:r.count;look()}
+async function sbRegLoad(){const f=pF;let q=SB.from('products').select('*',{count:'exact'}).eq('store_code',cur.store);const k=sbOr(f.q);if(k)q=q.or(k);
+ if(f.cat)q=q.eq('cat_code',f.cat);if(f.vd)q=q.eq('vendor_code',f.vd);if(f.mat)q=q.eq('material',f.mat);if(f.pol)q=q.eq('policy',f.pol);if(f.st=='in')q=q.gt('qty',0);if(f.st=='out')q=q.lte('qty',0);
+ const od={new:[['in_date',0],['product_code',0]],old:[['in_date',1],['product_code',1]],code:[['product_code',1]],model:[['model_name',1]],vendor:[['vendor_code',1],['product_code',1]]}[f.so]||[['in_date',0],['product_code',0]];
+ od.forEach(x=>{q=q.order(x[0],{ascending:!!x[1]})});
+ const r=await q.range(0,rLim-1);if(r.error){pRes=[];pTot=0;return msg(hEsc(sbErr(r.error)),'목록을 불러오지 못했습니다')}
+ const ps=sbCache((r.data||[]).map(rowToProd));await sbAttachPhotos(ps);pRes=ps;pTot=r.count==null?ps.length:r.count}
+function dataToBlob(u){const m=u.match(/^data:([^;]+);base64,(.*)$/),b=atob(m[2]),a=new Uint8Array(b.length);for(let i=0;i<b.length;i++)a[i]=b.charCodeAt(i);return new Blob([a],{type:m[1]})}
+async function sbProdSave(o,r){const s=cur.store,B='product-photos',old=edit>=0?db.products.find(x=>x._i===edit):null;
+ if(old&&r.code&&r.code!=old.code)return msg('제품코드는 변경할 수 없습니다. 코드가 잘못되었다면 삭제 후 다시 등록하세요.','저장하지 못했습니다');
+ const pol=r.policy,row={store_code:s,model_name:r.model,cat_code:r.cat,vendor_code:r.vendor,in_date:r.date,material:r.mat,color:r.color||null,purity:r.purity||null,size:r.size||null,total_wt_g:r.total,pure_wt_g:r.w24,wt18_g:r.w18,wt14_g:r.w14,base_labor:r.labor,stone_labor:r.stoneLabor,vat_flag:r.vat,policy:pol,cost_rate:pol=='S'?r.costRate:null,sale_mult:pol=='U'?r.mult:null,direct_cost:pol!='S'?r.directCost:null,qty:r.qty};
+ let code=old?old.code:(r.code||'');
+ if(old){const q=await SB.from('products').update(row).eq('store_code',s).eq('product_code',code);if(q.error)return msg(hEsc(sbErr(q.error)),'저장하지 못했습니다')}
+ else{const ym=String(r.date).slice(2,4)+String(r.date).slice(5,7);let n=0;
+  if(!code){const q=await SB.from('products').select('product_code').eq('store_code',s).like('product_code',ym+'%').order('product_code',{ascending:false}).limit(1);n=q.data&&q.data[0]?(+String(q.data[0].product_code).slice(4)||0):0}
+  let done=false,last=null;for(let i=0;i<6&&!done;i++){const c=r.code||ym+String(n+1+i).padStart(3,'0');const q=await SB.from('products').insert({...row,product_code:c,created_by:cur.uid});if(!q.error){code=c;done=true}else{last=q.error;if(r.code||q.error.code!='23505')break}}
+  if(!done)return msg(hEsc(sbErr(last)),'저장하지 못했습니다')}
+ try{const had=old?(old.photos||[]):[],keep=pPh.filter(x=>x.startsWith('sb:')).map(x=>x.slice(3)),rm=had.filter(p=>!keep.includes(p));
+  if(rm.length){await SB.storage.from(B).remove(rm);await SB.from('product_photos').delete().eq('store_code',s).eq('product_code',code).in('storage_path',rm)}
+  for(let i=0;i<pPh.length;i++){const u=pPh[i];if(u.startsWith('sb:')){await SB.from('product_photos').update({sort_no:i+1}).eq('store_code',s).eq('product_code',code).eq('storage_path',u.slice(3));continue}
+   const p=s+'/'+code+'/'+Date.now()+'-'+i+'.jpg',up=await SB.storage.from(B).upload(p,dataToBlob(u),{contentType:'image/jpeg'});if(up.error)throw up.error;
+   const ins=await SB.from('product_photos').insert({store_code:s,product_code:code,storage_path:p,sort_no:i+1});if(ins.error)throw ins.error}}
+ catch(e){edit=-1;pPhKey=null;shell();return msg('제품은 저장되었지만 사진을 올리지 못했습니다: '+hEsc(e.message||String(e)),'사진 저장 오류')}
+ edit=-1;pPhKey=null;toast('저장되었습니다');shell()}
+async function sbProdDel(o){const old=db.products.find(x=>x._i===edit);if(!old)return;const s=cur.store;
+ const q=await SB.from('products').delete().eq('store_code',s).eq('product_code',old.code);if(q.error)return msg(hEsc(sbErr(q.error)),'삭제하지 못했습니다');
+ if((old.photos||[]).length)await SB.storage.from('product-photos').remove(old.photos);
+ db.products=db.products.filter(x=>x._i!==old._i);edit=-1;pPhKey=null;toast('삭제되었습니다');shell()}
+const phSrc=u=>String(u).startsWith('sb:')?(sbUrl[u.slice(3)]||''):u;
+async function sbWarmUrls(paths){const miss=[...new Set(paths)].filter(p=>!sbUrl[p]&&!sbUT.has(p));if(!miss.length)return false;miss.forEach(p=>sbUT.add(p));
+ const r=await SB.storage.from('product-photos').createSignedUrls(miss,21600);(r.data||[]).forEach(x=>{if(x.signedUrl)sbUrl[x.path]=x.signedUrl});return true}
+async function sbShowPh(c,s){const p=prodOf(c);if(!p||!p.photos||!p.photos.length)return;await sbWarmUrls(p.photos);
+ ovl(`<div class=card style="max-width:520px;width:100%;max-height:92vh;overflow:auto;margin:0"><h3>${hEsc(p.model)} · ${p.code}</h3>${p.photos.map(x=>`<img src="${sbUrl[x]||''}" alt="제품 사진" style="width:100%;border-radius:6px;margin-bottom:8px;display:block">`).join('')}<button class=p style="width:100%" onclick="document.getElementById('ovl').remove()">닫기</button></div>`)}
 // ---- 제품 사진 ----
 let pPh=[],pPhKey=null;
 const phIcon=(c,s)=>{const p=db.products.find(x=>x.code==c&&x.store==s);return p&&p.photos&&p.photos.length?`<button class=ph title="사진 보기" onclick="event.stopPropagation();showPh('${c}','${s}')">📷</button>`:''};
 function ovl(h){const d=document.createElement('div');d.id='ovl';d.style.cssText='position:fixed;inset:0;background:#000a;display:flex;align-items:center;justify-content:center;z-index:60;padding:12px';d.onclick=e=>{if(e.target==d)d.remove()};d.innerHTML=h;document.body.appendChild(d)}
-function showPh(c,s){const p=db.products.find(x=>x.code==c&&x.store==s);if(!p||!p.photos)return;
+function showPh(c,s){if(SB)return sbShowPh(c,s);const p=db.products.find(x=>x.code==c&&x.store==s);if(!p||!p.photos)return;
  ovl(`<div class=card style="max-width:520px;width:100%;max-height:92vh;overflow:auto;margin:0"><h3>${hEsc(p.model)} · ${p.code}</h3>${p.photos.map(u=>`<img src="${u}" alt="제품 사진" style="width:100%;border-radius:6px;margin-bottom:8px;display:block">`).join('')}<button class=p style="width:100%" onclick="document.getElementById('ovl').remove()">닫기</button></div>`)}
 function phCard(){return `<div class=card><h3>제품 사진</h3>
  <div class=row style="margin:0 0 8px"><label class=fl>📷 사진 촬영<input type=file accept="image/*" capture="environment" onchange="addPhoto(this)"></label><label class=fl>🖼 앨범에서 선택<input type=file accept="image/*" onchange="addPhoto(this)"></label></div><details style="margin:0 0 8px"><summary class=note>버튼이 반응하지 않으면 눌러 주세요 (직접 선택)</summary><input type=file accept="image/*" onchange="addPhoto(this)" style="margin-top:6px"></details><div id=phbox></div>
  <p class=note>제품당 최대 3장까지 등록할 수 있고, 저장 공간을 위해 사진은 자동으로 줄여 저장됩니다.</p></div>`}
-function renderPh(){const b=$('#phbox');if(!b)return;
- b.innerHTML=pPh.length?`<div class=row style="margin:0">${pPh.map((u,i)=>`<div style="position:relative"><img src="${u}" alt="" style="width:84px;height:84px;object-fit:cover;border-radius:6px;border:1px solid var(--ln)"><button class=d style="position:absolute;top:2px;right:2px;padding:0 6px" onclick="pPh.splice(${i},1);renderPh()">✕</button></div>`).join('')}</div><p class=note style="margin:6px 0 0">${pPh.length}/3장 · 저장 버튼을 눌러야 제품에 반영됩니다.</p>`:'<p class=note style="margin:0">등록된 사진이 없습니다.</p>'}
+function renderPh(){const b=$('#phbox');if(!b)return;if(SB){const m=pPh.filter(x=>x.startsWith('sb:')).map(x=>x.slice(3));if(m.some(p=>!sbUrl[p]&&!sbUT.has(p)))sbWarmUrls(m).then(()=>renderPh())}
+ b.innerHTML=pPh.length?`<div class=row style="margin:0">${pPh.map((u,i)=>`<div style="position:relative"><img src="${phSrc(u)}" alt="" style="width:84px;height:84px;object-fit:cover;border-radius:6px;border:1px solid var(--ln)"><button class=d style="position:absolute;top:2px;right:2px;padding:0 6px" onclick="pPh.splice(${i},1);renderPh()">✕</button></div>`).join('')}</div><p class=note style="margin:6px 0 0">${pPh.length}/3장 · 저장 버튼을 눌러야 제품에 반영됩니다.</p>`:'<p class=note style="margin:0">등록된 사진이 없습니다.</p>'}
 function addPhoto_old(inp){const f=inp.files[0];inp.value='';if(!f)return;if(pPh.length>=3)return msg('사진은 제품당 최대 3장까지 등록할 수 있습니다.');
  const r=new FileReader();r.onload=e=>{const im=new Image();im.onload=()=>{const k=Math.min(1,700/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);pPh.push(c.toDataURL('image/jpeg',.7));renderPh()};im.onerror=()=>toast('이미지를 불러올 수 없습니다');im.src=e.target.result};r.readAsDataURL(f)}
 function addPhoto(inp){const f=inp.files&&inp.files[0];if(!f)return;
@@ -659,7 +707,7 @@ const oCh=o=>{const d=[];if(o.from.vendor&&o.from.vendor!=o.to.vendor)d.push(`�
 function oSearch(){oF={od1:$('#fo1').value,od2:$('#fo2').value,dd1:$('#fd1').value,dd2:$('#fd2').value,st:OST.filter((s,i)=>$('#fs'+i).checked),mat:$('#fmt').value,vd:$('#fvd').value};rLim=30;ordersV()}
 function oReset(){oF={od1:'',od2:'',dd1:'',dd2:'',st:OST.slice(),mat:'',vd:''};rLim=30;ordersV()}
 function oSt(id,v,el){const o=db.orders.find(x=>x.id==id);if(o){o.status=v;save();if(el)el.closest('tr').className='c-'+oClr(o);toast('상태가 변경되었습니다: '+v)}}
-function ordersV(){
+function ordersV(){if(SB&&sbNeed('o'))return;
  const f=oF,esc=s=>String(s||'-').replace(/</g,'&lt;');
  const L=mine('orders').filter(o=>(!f.od1||o.date>=f.od1)&&(!f.od2||o.date<=f.od2)&&(!f.dd1||(o.due&&o.due>=f.dd1))&&(!f.dd2||(o.due&&o.due<=f.dd2))&&f.st.includes(o.status||'주문')&&(!f.mat||o.to.mat==f.mat)&&(!f.vd||((o.to||{}).vendor||(o.from||{}).vendor)==f.vd)).sort((a,b)=>b.id>a.id?1:-1);
  const op=(arr,v)=>arr.map(s=>`<option ${v==s?'selected':''}>${s}</option>`).join('');
@@ -708,7 +756,7 @@ function sCancel(id){
 }
 // ---- 판매 현황 ----
 let sFrom=today.slice(0,8)+'01',sTo=today;
-function salesV(){
+function salesV(){if(SB&&sbNeed('s'))return;
  const M=cur.grp=='M'||cur.grp=='S',TN={base:'정상가',disc:'할인가',card:'카드가'};
  const L=mine('sales').filter(s=>s.date>=sFrom&&s.date<=sTo).sort((a,b)=>a.date==b.date?(a.id<b.id?1:-1):(a.date<b.date?1:-1));
  const sum=k=>L.filter(s=>!s.x).reduce((a,s)=>a+(s[k]||0),0),amt=sum('amt'),cost=sum('cost');
@@ -747,17 +795,18 @@ function cSave(){
  else if(!r[o.f[0][0]]&&o.f[0][2]=='text')return toast('필수 항목을 입력하세요');
  if(o.pk&&db[o.k].some(x=>x[o.pk]==r[o.pk]&&x._i!==edit&&(o.k=='stores'||x.store==(o.k=='users'&&r.store?r.store:cur.store))))return toast('이미 등록된 코드입니다');
  if(SB&&SBM[o.k])return sbMasterSave(o,r);
+ if(SB&&o.k=='products')return sbProdSave(o,r);
  if(o.k=='products')r.photos=pPh.slice();
  const ex=edit>=0&&db[o.k].find(x=>x._i===edit);
  if(ex)Object.assign(ex,r);else{r.store=r.store||cur.store;r._i=Date.now();db[o.k].push(r)}
  db.products.concat(db.users).forEach((x,i)=>x._i=x._i??i+Date.now()+Math.random());
  db[o.k].forEach((x,i)=>x._i=x._i??Date.now()+i);edit=-1;pPhKey=null;save();toast('저장되었습니다');shell();
 }
-function cDel(){const o=window._o;if(window._da!==edit){window._da=edit;return toast('삭제하려면 한 번 더 누르세요')}window._da=null;if(SB&&SBM[o.k])return sbMasterDel(o);db[o.k]=db[o.k].filter(x=>x._i!==edit);edit=-1;save();shell()}
+function cDel(){const o=window._o;if(window._da!==edit){window._da=edit;return toast('삭제하려면 한 번 더 누르세요')}window._da=null;if(SB&&o.k=='products')return sbProdDel(o);if(SB&&SBM[o.k])return sbMasterDel(o);db[o.k]=db[o.k].filter(x=>x._i!==edit);edit=-1;save();shell()}
 Object.keys(db).forEach(k=>Array.isArray(db[k])&&db[k].forEach((x,i)=>x._i=x._i??Date.now()+i+Math.random()));
 const opt=(k,l)=>()=>mine(k).map(x=>[x.code,x.code+' '+x.name]);
-function regp(){if(pPhKey!==edit){pPhKey=edit;const r0=edit>=0?db.products.find(x=>x._i===edit):null;pPh=r0&&r0.photos?r0.photos.slice():[]}
- const pl=pList();crud({pre:phCard(),mid:pMid(),list:pl.slice(0,rLim),post:moreBar(pl.length),t:'제품 등록 (입고)',k:'products',pk:'code',cols:['code','model','cat','vendor','date','mat','policy','total','qty'],def:{date:today,policy:'S',costRate:0,mult:2,directCost:0,mat:'24',qty:1,vat:0,color:'G',purity:'999',labor:0,stoneLabor:0,w24:0,w18:0,w14:0,total:0,size:''},
+function regp(){if(SB&&!regp.ok){$('#main').innerHTML='<h2>제품 등록 (입고)</h2><p class=note>불러오는 중...</p>';sbRegLoad().then(()=>{regp.ok=true;regp()});return}regp.ok=false;if(pPhKey!==edit){pPhKey=edit;const r0=edit>=0?db.products.find(x=>x._i===edit):null;pPh=r0&&r0.photos?r0.photos.map(x=>SB?'sb:'+x:x):[]}
+ const pl=pList();crud({pre:phCard(),mid:pMid(),list:pl.slice(0,rLim),post:moreBar(SB?pTot:pl.length),t:'제품 등록 (입고)',k:'products',pk:'code',cols:['code','model','cat','vendor','date','mat','policy','total','qty'],def:{date:today,policy:'S',costRate:0,mult:2,directCost:0,mat:'24',qty:1,vat:0,color:'G',purity:'999',labor:0,stoneLabor:0,w24:0,w18:0,w14:0,total:0,size:''},
  f:[['code','제품코드','text'],['model','모델명','text'],['cat','제품분류','text',opt('cats')],['vendor','업체','text',()=>vendorList(edit>=0?(db.products.find(x=>x._i===edit)||{}).vendor:'').map(x=>[x.code,x.name+((x.status||'활성')=='활성'?'':' (비활성)')]),()=>vSortName(mine('vendors')).map(x=>[x.code,x.name])],['date','입고일자','date'],
  ['mat','재질','text',()=>['24','18','14','PT','Ag'].map(x=>[x,x])],['color','색상','text'],['purity','순도','text'],['size','사이즈','text'],['total','총중량(g)','number'],['w24','순중량(g)','number'],['w18','18K중량(g)','number'],['w14','14K중량(g)','number'],
  ['labor','기본 공임','number'],['stoneLabor','알 공임','number'],['vat','VAT(0미포함/1포함)','number'],['policy','가격정책','text',()=>[['S','① 기준시세'],['U','② 단가제'],['P','③ 공시가제']]],['costRate','매입원가 기준시세(원/돈, 결제일 기준, ①기준시세만)','number'],['mult','판매 배수(배, ②단가제만)','number'],['directCost','제품 매입원가(원, ②단가제·③공시가제)','number'],['qty','수량','number']]});renderPh()}
